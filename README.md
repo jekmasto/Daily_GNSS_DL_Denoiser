@@ -1,5 +1,6 @@
 # Daily_GNSS_DL_Denoiser
-Models and code underlying the paper: 
+Models and code underlying the paper:
+
 Denoising Daily Displacement GNSS-Time series using Deep Neural Networks In a Near Real-Time Framing
 
 by Mastella G.1, Bedford J.2,  Corbi F.3, Funiciello F.1
