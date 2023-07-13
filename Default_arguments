@@ -14,3 +14,42 @@ def parse_args():
     args = argparser.parse_args()
     vars(default_config).update(vars(args))
     return
+
+
+--------------------------------------------- import
+import os
+import re
+
+import numpy as np
+import requests
+
+cascadia_box = [40, 51.8, -128.3, -121]  # min/max_latitude, min/max_longitude
+
+base_path = './geo_data'
+gnss_path = os.path.join(base_path, 'GNSS_CASCADIA')
+tenv_path = os.path.join(gnss_path, 'tenv')
+txt_path = os.path.join(gnss_path, 'txt')
+
+if not os.path.exists(gnss_path):
+    os.makedirs(gnss_path)
+
+if not os.path.exists(tenv_path):
+    os.makedirs(tenv_path)
+
+if not os.path.exists(txt_path):
+    os.makedirs(txt_path)
+
+# we download the time series for the chosen cascadia gnss stations
+with open(os.path.join(base_path, 'NGL_stations_cascadia.txt')) as f:
+    data_all = f.read().splitlines()
+
+codes = []
+for i, line in enumerate(data_all):
+    codes.append(line.split(' ')[0])
+
+for i, code in enumerate(codes):
+    if i % 50 == 0:
+        print(f"{int(i / len(codes) * 100)}% completed")
+    response = requests.get(f"http://geodesy.unr.edu/gps_timeseries/tenv/IGS14/{code}.tenv")
+    with open(os.path.join(tenv_path, f'{code}.txt'), 'wb') as f:
+        f.write(response.content)
