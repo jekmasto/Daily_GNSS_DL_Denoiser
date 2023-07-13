@@ -726,8 +726,62 @@ def compute_derivative(soln_folder_path,list_stations,save_folder):
         dfvel.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
     return print('finished')
 
+def conversion_Nevada(cd,cd_saving):
+    
+    """
+    Change a txt file download from Nevad to a format that can be handled
 
+    Parameters
+    ----------
+       cd: input folder 
+       cd_saving: folder of the created new files
+       
+    Returns
+    ----------
+       txt files for each input file present inside the input folder
+    """
+    
+    split_s=[0,2,5,7] #indexes where you split the string date (e.g. 08AUG22)
+    #months=list(np.linspace(1,12,12,dtype=int))
+    monthsN=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
 
+    list_stations=id_names_txt(cd+'/Stations')
+
+    for station in list_stations:
+        dfs = pd.read_csv(cd+'/Stations/'+str(station)+'.txt', 
+                 delim_whitespace=True,header=0,on_bad_lines='skip')
+        dfs=dfs.dropna(axis=1, how='all')
+        new_cols=['site','YYMMMDD','yyyy.yyyy','__MJD','week','d','reflon',
+                '_e0','E','n0(m)','N','u0(m)','U','_ant(m)','sig_e(m)',
+                'sig_n(m)','sig_u(m)','__corr_en','__corr_eu','__corr_nu']
+        new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
+        dfs.rename(new_names_map, axis=1, inplace=True) 
+        Columns=['year','month','day','E','N','U','sig_e','sig_n','sig_u']
+        zero_data = np.zeros(shape=(len(dfs['YYMMMDD']),len(Columns)))
+        zero_data = pd.DataFrame(zero_data, columns=Columns)
+        dates=dfs['YYMMMDD']
+        j=0
+        for d in dates:
+            splittata = []
+            for i in range(len(split_s)-1):
+                splittata.append(d[split_s[i] :split_s[i+1]])
+            if int(splittata[0][0])!=9:
+                splittata[0]=int('20'+splittata[0])
+            else:
+                splittata[0]=int('19'+splittata[0])
+            zero_data['year'][j]=splittata[0]
+            zero_data['month'][j]=int(monthsN.index(splittata[1])+1)
+            zero_data['day'][j]=int(splittata[2])
+            zero_data['E'][j]=dfs['E'][j]
+            zero_data['N'][j]=dfs['N'][j]
+            zero_data['U'][j]=dfs['U'][j]
+            zero_data['sig_e'][j]=dfs['sig_e(m)'][j]
+            zero_data['sig_n'][j]=dfs['sig_n(m)'][j]
+            zero_data['sig_u'][j]=dfs['sig_u(m)'][j]
+            j+=1
+        zero_data.to_csv(cd_saving+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
+    return print('Finished')
+        
 def avaliable_stations(soln_folder_path,list_stations,t):
     
     """
