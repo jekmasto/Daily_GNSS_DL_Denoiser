@@ -5,8 +5,6 @@ from tensorflow import keras
 import os, glob, sys
 import datetime 
 from datetime import timedelta
-import argparse
-from types import SimpleNamespace
 
 ### Check your current directory
 root_dir = input('Enter the root directory folder: ')
