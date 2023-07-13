@@ -26,8 +26,10 @@ Make sure you have the following packages:
 Additionaly the GrAtSiD code has to be installed. 
 
 GrAtSiD, the Greedy Automatic Signal Decomposition algorithm is a sequential greedy linear regression algorithm that perform the trajectory modelling of GNSS time-series.
+
 The code is avaliable from:
 https://github.com/TectonicGeodesy-RUB/Gratsid
+
 to cite:
 Bedford, J. and Bevis, M., 2018. Greedy automatic signal decomposition and its application to daily GPS time series. Journal of Geophysical Research: Solid Earth, 123(8), pp.6992-7003.
 
