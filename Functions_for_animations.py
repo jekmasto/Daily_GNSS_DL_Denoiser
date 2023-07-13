@@ -8,10 +8,8 @@ from datetime import timedelta
 import argparse
 from types import SimpleNamespace
 
-print(f"TensorFlow has access to the following devices:\n{tf.config.list_physical_devices()}")
-    
 ### Check your current directory
-root_dir = default_config.cd_base()
+root_dir = input('Enter the root directory folder: ')
 
 ### Directory name to search for
 directory_name = 'sharing_gratsid_tf_in_development'
@@ -24,13 +22,12 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
             directory_path = os.path.join(dirpath, dirname)
             print("Directory found:", directory_path)
             break
-    else:
-        # Directory not found
-        raise FileNotFoundError(f"Directory '{directory_name}' not found.")
-        
-        sys.path.append(directory_path)
-from gratsid_tf_gpu_functions_SHARED import *
+if dirname != directory_name:
+    raise FileNotFoundError(f"Directory '{directory_name}' not found. Be sure you have installed Gratsid")
 
+sys.path.append(directory_path)
+from gratsid_tf_gpu_functions_SHARED import *
+print(f"TensorFlow has access to the following devices:\n{tf.config.list_physical_devices()}")
 
 gen_jjj = np.vectorize(lambda x,y,z: datetime.date.toordinal(datetime.date(x,y,z)))
 
