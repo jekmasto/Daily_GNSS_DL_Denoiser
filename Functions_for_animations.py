@@ -5,11 +5,48 @@ from tensorflow import keras
 import os, glob, sys
 import datetime 
 from datetime import timedelta
-sys.path.append('/home/giacomo/Documents/Denoiser_GPS/sharing_gratsid_tf_in_development')
+import argparse
+from types import SimpleNamespace
+
+print(f"TensorFlow has access to the following devices:\n{tf.config.list_physical_devices()}")
+
+##### default input #####
+default_config = SimpleNamespace(
+    framework="fastai",
+    cd_base=os.getcwd(),
+)
+
+def parse_args():
+    "Overriding default argments"
+    argparser = argparse.ArgumentParser(description='Run Denoising Model')
+    argparser.add_argument('--cd_base', type=str, default=default_config.cd_base, help='base directory')
+    args = argparser.parse_args()
+    vars(default_config).update(vars(args))
+    return
+    
+### Check your current directory
+root_dir = default_config.cd_base()
+
+### Directory name to search for
+directory_name = 'sharing_gratsid_tf_in_development'
+
+# Iterate through the directory tree
+for dirpath, dirnames, filenames in os.walk(root_dir):
+    for dirname in dirnames:
+        if dirname == directory_name:
+            # Found the directory
+            directory_path = os.path.join(dirpath, dirname)
+            print("Directory found:", directory_path)
+            break
+    else:
+        # Directory not found
+        raise FileNotFoundError(f"Directory '{directory_name}' not found.")
+        
+        sys.path.append(directory_path)
 from gratsid_tf_gpu_functions_SHARED import *
 
-gen_jjj = np.vectorize(lambda x,y,z: datetime.date.toordinal(datetime.date(x,y,z)))
 
+gen_jjj = np.vectorize(lambda x,y,z: datetime.date.toordinal(datetime.date(x,y,z)))
 
 def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_baseO,verbose=None,step_array=None): 
     
@@ -267,7 +304,7 @@ def import_resi(file):
 
 def load_step(file):
     """
-    Apply the DL model to a time series
+    Load a step file
     
     Parameters
     ----------
@@ -302,6 +339,10 @@ def load_step(file):
     
 class Station:
 
+"""
+Create a class for a given station
+"""
+
     def __init__(self, name,starting_date,last_date,components,cd):
         """
         
@@ -331,7 +372,7 @@ class Station:
         
         fname=self.cd+str(self.name)+'.txt'
         
-        ## Apply only first datetime 
+        ## Check which rows are inside the investigated time period
         rows_to_keep=[]
         with open(fname) as f:
             for i, line in enumerate(f):
@@ -343,9 +384,8 @@ class Station:
         dfs = pd.read_csv(self.cd+str(self.name)+'.txt', 
                  delim_whitespace=True,header=0,on_bad_lines='skip',skiprows = lambda x: x not in rows_to_keep)
         
-        ## Remove if Nan
+        ## Remove Nans
         dfs=dfs.dropna(axis=1, how='all')
-        
         
         if len(dfs)>0:
             new_cols=['year','months','days','E','N','U','sig_e(m)',
@@ -388,7 +428,6 @@ class Station:
         ### all signals ###
         signals=[] 
 
-    
         if use_known_steps==1:
             ############### steps of the station ###############
             antennas=df_stepsAC.loc[list(df_stepsAC.index[df_stepsAC['station'] == self.station]) ].YYMMDD
@@ -430,7 +469,43 @@ class Station:
         
         return signals
 
+##################### Some Utilities #####################
+def id_names_txt(soln_folder_path):
+    """
+    list of the names of the *txt files inside a folder
 
+    Parameters
+    ----------
+       soln_folder_path: input folder 
+    
+    Returns
+    ----------
+        Output: List of the names of the files
+    """
+    os.chdir(soln_folder_path)
+    names=[]
+    for file in glob.glob("*.txt"):
+        names.append(file.split('.')[0])
+    return sorted(names) 
+    
+def id_names_raw(soln_folder_path):
+    """
+    list of the names of the *txt files inside a folder
+
+    Parameters
+    ----------
+       soln_folder_path: input folder 
+    
+    Returns
+    ----------
+        Output: List of the names of the files
+    """
+    os.chdir(soln_folder_path)
+    names=[]
+    for file in glob.glob("*.iqrx3"):
+        names.append(file.split('.')[0])
+    return sorted(names) 
+    
 def datetime_to_decimal(dt):
 
     """
@@ -475,14 +550,115 @@ def transform_vector(vector):
         transformed_vector[i + 1] = transformed_vector[i] + increment
 
     return transformed_vector
-    
-    
-    
-######################################### ADDITIONAL #########################################
 
-def avaliable_stations_vel(soln_folder_path,list_stations,t):
+def derivative(t,data,step):
+    """
+    Compute the derivate taking into acount a variable time vector
+    
+    Parameters
+    ----------
+       t: time vector
+       data: data vector
+       step: step based on which you want to calculate the derivative
+
+    Returns
+    ----------
+       derivative: with len(data)-1
+    """
+    if len(t)!=len(data):
+        raise ValueError('The two variables have a different length')
+   
+    der=np.zeros(len(t)-step)
+    for i in range(step,len(data)):
+        der[i-step]=(data[i]- data[i-step])/(t[i]-t[i-step])
+    return der
+    
+def influence_radius(Mw): #Nevada formula (http://geodesy.unr.edu/explanationofplots.php) 
+    d = 1.15 #empirical coefficient;
+    return 10**(0.43*Mw-0.7)/d
+
+def indices(lst, item): 
+    #return duplicates within a list
+    return [i for i, x in enumerate(lst) if x == item]  
+
+def find_common_elements_with_indexes(array1, array2):
+
+    """
+    finds the common elements between two arrays and returns their corresponding indexes in both arrays
+    """
+
+    common_elements = []
+    common_indexes_array1 = []
+    common_indexes_array2 = []
+
+    for index1, element1 in enumerate(array1):
+        for index2, element2 in enumerate(array2):
+            if element1 == element2 and element1 not in common_elements:
+                common_elements.append(element1)
+                common_indexes_array1.append(index1)
+                common_indexes_array2.append(index2)
+
+    return common_elements, common_indexes_array1, common_indexes_array2
+    
+################## Functions to run the code in a loop with multiple stations and make animations ##################
+
+def avaliable_stations_vel(soln_folder_path,list_stations,t,new_cols):
     """
     Returns the list of avaliable stations for each day
+
+    Parameters
+    ----------
+       soln_folder_path: input folder 
+       list_stations: list of stations
+       t: datetime range
+       new_cols: list of columns of the input txt files (e.g. ['YYMMDD','E','DL_E','EMV_E','GrAtSiD_E','N','DL_N','EMV_N','GrAtSiD_N'])
+    
+    Returns
+    ----------
+       List of avaliable stations for each day
+    """
+    n_stations=np.zeros(len(t))
+    dft = pd.DataFrame(data=np.column_stack((t,n_stations)),columns=['YYMMDD','Count'])
+    dft['YYMMDD']=dft['YYMMDD'].astype('datetime64[ns]')
+    listT=list(dft['YYMMDD'])
+    Stations=[[] for _ in range(len(listT))] #list of length(t) built by empy lists
+    k=0
+    ten_step=10
+    
+    for station in list_stations: #random_stations
+        dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
+                 delim_whitespace=True,header=0,on_bad_lines='skip')
+        dfs=dfs.dropna()
+        new_cols=new_cols
+        new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
+        dfs.rename(new_names_map, axis=1, inplace=True)
+        #transform to the same datetime format!!
+        dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
+    
+        listdfs=list(dfs['YYMMDD'])
+        both = set(listT).intersection(listdfs ) #datetime elements in common
+        indices_A =[listT.index(x) for x in both]
+        indices_B =[listdfs.index(x) for x in both]
+        for i,j in zip(indices_A,indices_B):
+            Stations[i].append([station,j]) #station and index 
+        
+        dft.loc[indices_A, 'Count']+=1
+        k+=1
+    
+        perc=(k*100)/len(list_stations)
+        if perc>ten_step and ((k-2)*100)/len(list_stations)<ten_step:
+            print(str(round(perc))+'%')
+            ten_step+=10
+        
+    return Stations,dft
+
+def avaliable_stations(soln_folder_path,list_stations,t):
+    
+    """
+    Returns the list of avaliable stations for each day, having as input NEVADA files
+    columns of a NEVADA file: ['site','YYMMMDD','yyyy.yyyy','__MJD','week','d','reflon',
+                '_e0','E','n0(m)','N','u0(m)','U','_ant(m)','sig_e(m)',
+                'sig_n(m)','sig_u(m)','__corr_en','__corr_eu','__corr_nu']
 
     Parameters
     ----------
@@ -506,10 +682,15 @@ def avaliable_stations_vel(soln_folder_path,list_stations,t):
         dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
                  delim_whitespace=True,header=0,on_bad_lines='skip')
         dfs=dfs.dropna()
-        new_cols=['YYMMDD','E','DL_E','MV_E','EMV_E','GrAtSiD_E','N','DL_N','MV_N','EMV_N','GrAtSiD_N']
+        new_cols=['year','months','days','E','N','U','sig_e(m)','sig_n(m)','sig_u(m)']
         new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
         dfs.rename(new_names_map, axis=1, inplace=True)
-        #transform to the same datetime format!!
+        #df.to_csv(cd+'/'+str(station)+'.txt', index=False,sep=',') 
+        
+        dfs['YYMMDD'] = pd.Series(dtype='float64')
+        for i in range(len( dfs['year'])):
+            dfs.loc[i, 'YYMMDD'] = datetime.strptime(str(int(dfs['year'][i]))+str('-')+str(int(dfs['months'][i]))+'-'+str(int(dfs['days'][i])), '%Y-%m-%d').date()
+
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
     
         listdfs=list(dfs['YYMMDD'])
@@ -528,158 +709,6 @@ def avaliable_stations_vel(soln_folder_path,list_stations,t):
             ten_step+=10
         
     return Stations,dft
-    
-def ema(data, window):
-    """
-    Compute the exponential moving average causally
-    
-    Parameters
-    ----------
-       values: input array
-       window: window
-    """
-    alpha = 2 / (window + 1)
-    ema = [data[0]]  # Start with the first data point as the initial EMA value
-
-    for i in range(1, len(data)):
-        ema_value = (data[i] * alpha) + (ema[i - 1] * (1 - alpha))
-        ema.append(ema_value)
-
-    return np
-
-def derivative(t,data,step):
-    """
-    Compute the derivate taking into acount a variable time vector
-    
-    Parameters
-    ----------
-       t: time vector
-       data: data vector
-       step: step based on which you want to calculate the derivative
-
-    Returns
-    ----------
-       derivative: with len(data)-1
-    """
-    if len(t)!=len(data):
-        raise ValueError('The two variables have a different length')
-   
-    der=np.zeros(len(t)-step)
-    for i in range(step,len(data)):
-        der[i-step]=(data[i]- data[i-step])/(t[i]-t[i-step])
-    return der
-
-def id_names_txt(soln_folder_path):
-    """
-    list of the names of the *txt files inside a folder
-
-    Parameters
-    ----------
-       soln_folder_path: input folder 
-    
-    Returns
-    ----------
-        Output: List of the names of the files
-    """
-    os.chdir(soln_folder_path)
-    names=[]
-    for file in glob.glob("*.txt"):
-        names.append(file.split('.')[0])
-    return sorted(names) 
-    
-def id_names_raw(soln_folder_path):
-    """
-    list of the names of the *txt files inside a folder
-
-    Parameters
-    ----------
-       soln_folder_path: input folder 
-    
-    Returns
-    ----------
-        Output: List of the names of the files
-    """
-    os.chdir(soln_folder_path)
-    names=[]
-    for file in glob.glob("*.iqrx3"):
-        names.append(file.split('.')[0])
-    return sorted(names) 
-
-    
-def influence_radius(Mw): #Nevada formula (http://geodesy.unr.edu/explanationofplots.php) 
-    d = 1.15 #empirical coefficient;
-    return 10**(0.43*Mw-0.7)/d
-
-def indices(lst, item): 
-    #return duplicates within a list
-    return [i for i, x in enumerate(lst) if x == item]  
- 
-def exp_weighted_moving_av_with_shift(y_in,expo,window_size,shift): 
-    
-    ### Note, "shift" should always be less than window_size/2
-
-    """
-    Exponential moving average
-
-    Parameters
-    ----------
-       y_in: iput data 
-       expo: base of the exponential weighting (if 1 --> linear)
-       window_size: size of the moving window
-       shift: location of the peak of the weights (in samples -- if shift=2 the peak will be at the sample [window_size-2])
-    Returns
-    ----------
-        y_out: filtered time-series
-    """  
-
-    x = np.arange(window_size)
-    w = x**expo
-    if shift>0: ### Note, "shift" should always be less than window_size/2
-        w_up = w[0:-shift]
-        w_down = w_up[::-1][1:1+shift]
-        w = np.concatenate([w_up,w_down])
-        
-    w = w/w.sum()
-    weighted_disps = []
-
-    for i in range(y_in.size-window_size+1):
-        ### Maybe some nans in the time series: in that case, we need to re-normalize the weighting.
-        w_incase_nan = w.copy()
-        w_incase_nan[np.isnan(y_in[i:i+window_size])] = np.nan
-        w_incase_nan = w_incase_nan/w_incase_nan.sum()
-        
-        ### Applying the weighting
-        weighted_disps.append(np.nansum(np.multiply(w_incase_nan,y_in[i:i+window_size])))
-    
-    ## turning list into numpy array
-    weighted_disps = np.array(weighted_disps)
-    
-    ### There will be nans at the start and nans at the end of the time series if shift>0
-    y_out = np.zeros(y_in.size)
-    y_out.fill(np.nan)
-    y_out[(window_size-1-shift):(window_size-1-shift)+weighted_disps.size] = weighted_disps
-           
-    return y_out
-
-def find_common_elements_with_indexes(array1, array2):
-
-    """
-    finds the common elements between two arrays and returns their corresponding indexes in both arrays
-    """
-
-    common_elements = []
-    common_indexes_array1 = []
-    common_indexes_array2 = []
-
-    for index1, element1 in enumerate(array1):
-        for index2, element2 in enumerate(array2):
-            if element1 == element2 and element1 not in common_elements:
-                common_elements.append(element1)
-                common_indexes_array1.append(index1)
-                common_indexes_array2.append(index2)
-
-    return common_elements, common_indexes_array1, common_indexes_array2
-
 
 def compute_derivative(soln_folder_path,list_stations,save_folder):
     """
@@ -781,76 +810,88 @@ def conversion_Nevada(cd,cd_saving):
             j+=1
         zero_data.to_csv(cd_saving+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
     return print('Finished')
-        
-def avaliable_stations(soln_folder_path,list_stations,t):
-    
+
+###################### Some other filtering methods ######################
+def ema(data, window):
     """
-    Returns the list of avaliable stations for each day
+    Compute the exponential moving average causally
+    
+    Parameters
+    ----------
+       values: input array
+       window: window
+    """
+    alpha = 2 / (window + 1)
+    ema = [data[0]]  # Start with the first data point as the initial EMA value
+
+    for i in range(1, len(data)):
+        ema_value = (data[i] * alpha) + (ema[i - 1] * (1 - alpha))
+        ema.append(ema_value)
+
+    return np.array(ema)
+    
+def exp_weighted_moving_av_with_shift(y_in,expo,window_size,shift): 
+    
+    ### Note, "shift" should always be less than window_size/2
+
+    """
+    Exponential moving average
 
     Parameters
     ----------
-       soln_folder_path: input folder 
-       list_stations: list of stations
-       t: datetime range
-    
+       y_in: iput data 
+       expo: base of the exponential weighting (if 1 --> linear)
+       window_size: size of the moving window
+       shift: location of the peak of the weights (in samples -- if shift=2 the peak will be at the sample [window_size-2])
     Returns
     ----------
-       List of avaliable stations for each day
-    """
-    n_stations=np.zeros(len(t))
-    dft = pd.DataFrame(data=np.column_stack((t,n_stations)),columns=['YYMMDD','Count'])
-    dft['YYMMDD']=dft['YYMMDD'].astype('datetime64[ns]')
-    listT=list(dft['YYMMDD'])
-    Stations=[[] for _ in range(len(listT))] #list of length(t) built by empy lists
-    k=0
-    ten_step=10
-    
-    for station in list_stations: #random_stations
-        dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
-                 delim_whitespace=True,header=0,on_bad_lines='skip')
-        dfs=dfs.dropna()
-        new_cols=['year','months','days','E','N','U','sig_e(m)','sig_n(m)','sig_u(m)']
-        new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
-        dfs.rename(new_names_map, axis=1, inplace=True)
-        #df.to_csv(cd+'/'+str(station)+'.txt', index=False,sep=',') 
-        
-        dfs['YYMMDD'] = pd.Series(dtype='float64')
-        for i in range(len( dfs['year'])):
-            dfs.loc[i, 'YYMMDD'] = datetime.strptime(str(int(dfs['year'][i]))+str('-')+str(int(dfs['months'][i]))+'-'+str(int(dfs['days'][i])), '%Y-%m-%d').date()
+        y_out: filtered time-series
+    """  
 
-        dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
-    
-        listdfs=list(dfs['YYMMDD'])
-        both = set(listT).intersection(listdfs ) #datetime elements in common
-        indices_A =[listT.index(x) for x in both]
-        indices_B =[listdfs.index(x) for x in both]
-        for i,j in zip(indices_A,indices_B):
-            Stations[i].append([station,j]) #station and index 
+    x = np.arange(window_size)
+    w = x**expo
+    if shift>0: ### Note, "shift" should always be less than window_size/2
+        w_up = w[0:-shift]
+        w_down = w_up[::-1][1:1+shift]
+        w = np.concatenate([w_up,w_down])
         
-        dft.loc[indices_A, 'Count']+=1
-        k+=1
-    
-        perc=(k*100)/len(list_stations)
-        if perc>ten_step and ((k-2)*100)/len(list_stations)<ten_step:
-            print(str(round(perc))+'%')
-            ten_step+=10
-        
-    return Stations,dft
+    w = w/w.sum()
+    weighted_disps = []
 
+    for i in range(y_in.size-window_size+1):
+        ### Maybe some nans in the time series: in that case, we need to re-normalize the weighting.
+        w_incase_nan = w.copy()
+        w_incase_nan[np.isnan(y_in[i:i+window_size])] = np.nan
+        w_incase_nan = w_incase_nan/w_incase_nan.sum()
+        
+        ### Applying the weighting
+        weighted_disps.append(np.nansum(np.multiply(w_incase_nan,y_in[i:i+window_size])))
+    
+    ## turning list into numpy array
+    weighted_disps = np.array(weighted_disps)
+    
+    ### There will be nans at the start and nans at the end of the time series if shift>0
+    y_out = np.zeros(y_in.size)
+    y_out.fill(np.nan)
+    y_out[(window_size-1-shift):(window_size-1-shift)+weighted_disps.size] = weighted_disps
+           
+    return y_out
 
 def hampel_filter(data, window_size=None, n_sigma=None,threshold = None):
     """
     Apply Hampel filter to remove outliers from data.
     
-    Parameters:
-    - data: numpy array or list, the input data
-    - window_size: int, the size of the moving window (default: 3)
-    - n_sigma: int, the number of standard deviations to define the outlier threshold (default: 3)
+    Parameters
+    ----------
+       data: numpy array or list, the input data
+       window_size: int, the size of the moving window (default: 3)
+       n_sigma: int, the number of standard deviations to define the outlier threshold (default: 3)
     
-    Returns:
-    - filtered_data: numpy array, the filtered data with outliers removed
-    - outlier_indices: numpy array, the indices of the outliers in the original data
-    - non_outlier_indices: numpy array, the indices of the non-outliers in the original data
+    Returns
+    ----------
+       filtered_data: numpy array, the filtered data with outliers removed
+       outlier_indices: numpy array, the indices of the outliers in the original data
+       non_outlier_indices: numpy array, the indices of the non-outliers in the original data
     
     """
     filtered_data = np.array(data)
