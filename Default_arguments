@@ -1,3 +1,6 @@
+import argparse
+from types import SimpleNamespace
+
 ##### default input #####
 default_config = SimpleNamespace(
     framework="fastai",
