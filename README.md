@@ -11,7 +11,7 @@ by Mastella G.1, Bedford J.2,  Corbi F.3, Funiciello F.1
 
 *Corresponding author: Giacomo Mastella (giacomo.mastella@uniroma3.it)
 
-Author of the Code: Giacomo Mastella and Jonathan Bedford
+Author of the Code: Giacomo Mastella and Jonathan Bedford.
 
 Contact  Giacomo Mastella (giacomo.mastella@uniroma3.it) if you have any problems using this code.
 
