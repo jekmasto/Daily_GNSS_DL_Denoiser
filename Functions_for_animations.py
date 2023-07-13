@@ -9,20 +9,6 @@ import argparse
 from types import SimpleNamespace
 
 print(f"TensorFlow has access to the following devices:\n{tf.config.list_physical_devices()}")
-
-##### default input #####
-default_config = SimpleNamespace(
-    framework="fastai",
-    cd_base=os.getcwd(),
-)
-
-def parse_args():
-    "Overriding default argments"
-    argparser = argparse.ArgumentParser(description='Run Denoising Model')
-    argparser.add_argument('--cd_base', type=str, default=default_config.cd_base, help='base directory')
-    args = argparser.parse_args()
-    vars(default_config).update(vars(args))
-    return
     
 ### Check your current directory
 root_dir = default_config.cd_base()
