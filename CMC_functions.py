@@ -53,10 +53,16 @@ def weighted_median(values, weights):
 
     Parameters
     ----------
+        values: input array
+        weights: wheights of the input array
+    Returns 
+    ----------
+        wa: weighted median
     """
     i = np.argsort(values)
     c = np.cumsum(weights[i])
-    return values[i[np.searchsorted(c, 0.5 * c[-1])]]
+    wa=values[i[np.searchsorted(c, 0.5 * c[-1])]]
+    return np.array(wa)
 
 def max_consecutive_nan(arr):
 
@@ -80,7 +86,6 @@ def max_consecutive_nan(arr):
             idx=idx2 
         else : return max_         
     return max_ 
-
 
 
 ######## Coordinates file
@@ -234,9 +239,6 @@ def CMF(comp,t,d,r,df,station,thr_distance,cd_base,cd_data,weight_flag=None):
             return t,r,d,median_res
     else:
         return t,r,d,0
-
-def plot_CMC(t,r,d,median_res,comp,station):
-
 
 def denoise(comp,t,d,r,df,station,thr_distance,cd_base,cd_data,weight_flag=None):
 
