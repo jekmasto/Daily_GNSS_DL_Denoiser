@@ -6,7 +6,7 @@ import os, glob, sys
 import datetime 
 from datetime import timedelta
 
-### Check your current directory
+### Input your current directory where you have the gratsid folder
 root_dir = input('Enter the root directory folder: ')
 
 ### Directory name to search for
