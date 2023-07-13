@@ -19,8 +19,8 @@ Make sure you have the following packages:
 	- numpy  (I am using 1.23.4)
 	- tensorflow2  (I am using 2.9.1)
 	- scipy (1.3.3)
-  - pandas
-  - datetime
+        - pandas
+	- datetime
 
 Additionaly the GrAtSiD code has to be installed. 
 GrAtSiD, the Greedy Automatic Signal Decomposition algorithm is a sequential greedy linear regression algorithm that perform the trajectory modelling of GNSS time-series.
