@@ -33,3 +33,12 @@ https://github.com/TectonicGeodesy-RUB/Gratsid
 to cite:
 Bedford, J. and Bevis, M., 2018. Greedy automatic signal decomposition and its application to daily GPS time series. Journal of Geophysical Research: Solid Earth, 123(8), pp.6992-7003.
 
+
+if you want to use the GAN for generating synthetics residuals spectrograms, also the librosa package has to be installed
+The code is avaliable from:
+https://librosa.org/doc/latest/index.html
+
+to cite:
+McFee, Brian, Colin Raffel, Dawen Liang, Daniel PW Ellis, Matt McVicar, Eric Battenberg, and Oriol Nieto. “librosa: Audio and music signal analysis in python.” In Proceedings of the 14th python in science conference, pp. 18-25. 2015.
+https://zenodo.org/record/7746972,
+
