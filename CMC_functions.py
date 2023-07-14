@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Feb  15 16:29:18 2023
+
+Functions to apply a Common Mode Filter for GNSS daily time-series 
 
 @author: giacomo
 """
@@ -177,7 +180,7 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Distance_file=None,save_f
         ##### Here I allocate the residual of the other stations
         matrix_median=np.zeros([len(stations_to_use),len(t),len(components)])
         n=len(stations_to_use)
-        ten_step=5
+        ten_step=10
 
         ##### I Start the loop 
         print("Take residuals of close stations")
@@ -198,7 +201,7 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Distance_file=None,save_f
             
             if (st/len(stations_to_use))*100 > ten_step:
                 print(str(ten_step)+'%')
-                ten_step+=5
+                ten_step+=10
         
         print("Compute median")
         median_resT=[]
@@ -284,12 +287,12 @@ def distance_loop(df,save_flag=False,cd=None):
     
     Distance_list=[]
     for i in range(len(df)):
-        df_new=df[df.station!=df.station[i]]  
+        df_new=df[df.station!=df.station.iloc[i]]  
         distanceT=[]
         for st in range(len(df_new)): 
             dis=distance([df_new.latitude.iloc[st],df_new.longitude.iloc[st]], [df.latitude.iloc[i],df.longitude.iloc[i]])
             if dis< thr:
-                distanceT.append([df_new.station[st],dis])
+                distanceT.append([df_new.station.iloc[st],dis])
         Distance_list.append(distanceT)
    
     if save_flag==True:
@@ -322,6 +325,7 @@ def max_consecutive_nan(arr):
     return max_
     
 def build_correlation_matrix(df,soln_folder_path,new_cols,save_flag=False,save_folder=True):
+    
     """
     Parameters
     ----------
@@ -333,8 +337,8 @@ def build_correlation_matrix(df,soln_folder_path,new_cols,save_flag=False,save_f
 
     Returns
     ----------
-        corr: Correlation matrix with a dimension of [len(stations),len(stations)-1,5]
-              the last three values are: distance between stations [0], number days in common [1], Pearson correlation coefficient for the three components [2,3,4]
+        corr: Correlation matrix with a dimension of [len(stations),len(stations)-1,len(componets)]
+              the last three values are: distance between stations [0], number days in common [1], Pearson correlation coefficient for the n components [2,3,4]
     """
     
     if not any('GrAtSiD' in element for element in new_cols):
@@ -511,7 +515,21 @@ def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,wei
         print ('CMF cannot be applyed - the station is isolated')
         return t,r,d,0
 
-def plot_CMC_correlation(t,r,d,median_res,comp,station):
+def plot_CMF_correlation(t,r,d,median_res,comp,station):
+
+    """
+    Make a plot of CMF results
+
+    Parameters
+    ----------
+        t: vetorized time
+        r: real residuals 
+        d: raw time-series  
+        median_res:
+        comp: component 
+        station: name of the station
+    
+    """
     
     ### Remove the trend
     from scipy.stats import linregress
@@ -566,7 +584,24 @@ def plot_CMC_correlation(t,r,d,median_res,comp,station):
     
     return plt.show()
 
-def plot_CMC_dataframe(dfs,station,comp,weight_flag=False,save_flag=False):
+def plot_CMC_dataframe(dfs,station,comp,weight_flag=False,save_flag=False,cd_save=None):
+
+    """
+    Make a plot of CMF results using a dataframe as input (the output of the CMF function)
+
+    Parameters
+    ----------
+        dfs: dataframe of denoised results
+        station: name of the station
+        comp: components to use (eg: 'E')
+        weight_flag: if True returns the weighted median else the basic median
+        save_flag: bolean if True save the figure
+        cd_save: folder where save the figure
+   
+    Returns
+    ----------
+        The plot of CMF results
+    """
     
     r=np.array(dfCMF[comp]-dfCMF['GrAtSiD_'+comp]).astype('float')
     d=np.array(dfCMF[comp]).astype('float')
@@ -630,6 +665,90 @@ def plot_CMC_dataframe(dfs,station,comp,weight_flag=False,save_flag=False):
     
     return plt.show()
 
+def plot_correlation_matrix(corr,save_flag=False,save_folder=None):
+    
+    """
+    Parameters
+    ----------
+       corr: Correlation matrix with a dimension of [len(stations),len(stations)-1,len(componets)]
+             the last three values are: distance between stations [0], number days in common [1], Pearson correlation coefficient for the three components [2,3,4]
+       save_flag: bolean (if True, save the plot)
+       save_folder: folder where save the figure
+       
+    Returns
+    ----------
+       Scatter plot for each components the Pearson correlation coefficient as a function of the Intersation Distance 
+             the scatter color depicts the number of days in common between each time-series 
+    """
+    
+    from scipy.interpolate import splev, splrep
+
+    fig,axes=plt.subplots(corr.shape[2]-2,1,figsize=(9,10))
+    fig.subplots_adjust(wspace=.32,hspace=0)
+    c=0
+    
+    for ax in axes.flat:
+        #find time series with temporal intersections
+        indici=np.where(corr[c,:,1]!=0)[0]
+        distance = np.hstack( np.array(corr,dtype='object')[:,indici,0]).astype('float')
+        intersect_len = np.hstack( np.array(corr,dtype='object')[:,indici,1]).astype('int')
+        correlation = np.hstack( np.array(corr,dtype='object')[:,indici,2+c]).astype('float')
+        
+        #Remove Nans
+        no_nan=np.where(~np.isnan(correlation))
+        distance=distance[no_nan]
+        correlation=correlation[no_nan]
+        intersect_len=intersect_len[no_nan]
+
+        # I normalize the lenintersect
+        intersect_len_N=(intersect_len - min(intersect_len)) / (max(intersect_len) - min(intersect_len))
+
+        # I revert the lenintersect [shorter series higher uncertanty]
+        ww=intersect_len_N.copy()
+        indici_sort=sorted(range(len(intersect_len_N)), key=lambda k: intersect_len_N[k])
+        intersect_len_N[indici_sort]=sorted(ww, reverse=True)
+    
+        #sort distance to make the fit
+        dis_sort=np.argsort(distance)
+        sorted_dis=[distance[i] for i in dis_sort]
+        corr_sort=[correlation[i] for i in dis_sort]
+        ww=[intersect_len_N[i] for i in dis_sort]
+    
+        #distances have to be unique
+        indixes_unique_dis=np.unique(sorted_dis, return_index=True)
+        ww=[ww[i] for i in indixes_unique_dis[1]]
+    
+        #make the fit
+        spl = splrep(indixes_unique_dis[0], [corr_sort[i] for i in indixes_unique_dis[1]],w=ww,k=4) #,w=intersect_len_N
+        x2 = np.linspace(0, max(distance), 10000)
+        y2 = splev(x2, spl)
+    
+        #plot the scatter
+        scatt=ax.scatter(distance,correlation,s=0.1,c=intersect_len) 
+        ax.plot(x2, y2, color='r',
+                label='fit')
+        ax.set_ylabel('Pearson Correlation')
+        ax.set_xlabel('Distance [km]')
+        #ax.set_ylim([-1,1])
+        ax.set_xlim([0,max(distance)])
+        if c!=len(components)-1:
+            axes[c].set_xticks([])
+
+        ax.text(.5,.04,'Component: '+components[c],horizontalalignment='center',transform= ax.transAxes,fontsize=7,
+        bbox=dict(facecolor='white', edgecolor='k',boxstyle='round'),color='k')
+        print(c)
+        c+=1
+
+    cbar=fig.colorbar(scatt, ax=axes.ravel().tolist())
+    cbar.ax.tick_params(labelsize=8)
+    cbar.ax.set_title('Intersection [days]', rotation=0, fontdict = {"size":8})
+
+    if save_flag==True:
+        fig.savefig(save_folder+'/Correlation_Residuals.pdf')    
+        fig.savefig(save_folder+'/Correlation_Residuals.png',dpi=300) 
+    
+    return plt.show()
+
 """ 
 ################### Example if you don't have the Correlation Matrix #######################
 #coordinates file
@@ -665,10 +784,15 @@ new_cols.insert(0, 'YYMMDD')
 ##### Run CMF #####
 thr_distance=2000 #distance threeshold
 dfCMF=CMF(file,dfC,soln_folder_path,3000,new_cols)                              
-######## Coordinates file
-file_coordinates='/home/giacomo/Documents/Denoiser_GPS/Wordwide_dataset/Stations_coordinates.txt'
 
-################### Example if you 'have the Correlation Matrix #######################
+##### Build and Plot the correlation Matrix #####
+dfC = pd.read_csv(dfC, delimiter=',',names=['station','latitude','longitude','altitude'],header=None)
+save_folder='/Users/giacomo/Documents/PhD/Papers/GNSS_DENOISER/New_zeland_C/'
+corr=build_correlation_matrix(dfC,soln_folder_path,new_cols,components,save_flag=True,save_folder=save_folder)
+corr=np.load(save_folder+'Correlation_matrix.npy')
+plot_correlation_matrix(corr)
+
+################### Example if you have the Correlation Matrix #######################
 comp='U'
 cd_base='/home/giacomo/Documents/Denoiser_GPS/Common_mode_analysis/'
 cd_data='/home/giacomo/Documents/Denoiser_GPS/Wordwide_dataset/t_disps_resids/'
