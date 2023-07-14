@@ -20,7 +20,8 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
             directory_path = os.path.join(dirpath, dirname)
             print("Directory found:", directory_path)
             break
-if dirname != directory_name:
+
+if not os.path.exists(directory_path)::
     raise FileNotFoundError(f"Directory '{directory_name}' not found. Be sure you have installed Gratsid")
 
 sys.path.append(directory_path)
