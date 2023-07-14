@@ -9,19 +9,34 @@ Created on Mar 7 11:18:25 2023
 import sys ,glob, os,pickle,random
 import numpy as np
 import datetime as dt
-sys.path.append('/home/giacomo/Documents/Denoiser_GPS/sharing_gratsid_tf_in_development')
-sys.path.append('/home/giacomo/Documents/Step_model')
-sys.path.append('/home/giacomo/Documents/Denoiser_GPS/Denoiser_code')
-from funcs_4_DL_resids import *
 from gratsid_tf_gpu_functions_SHARED import *
 
-components=['E/' ] #'E/','N/' #'U/'
-components=['U/']
+### Input your current directory where you have the gratsid folder
+root_dir = input('Enter the root directory folder: ')
+
+### Directory name to search for
+directory_name = 'sharing_gratsid_tf_in_development'
+
+# Iterate through the directory tree
+for dirpath, dirnames, filenames in os.walk(root_dir):
+    for dirname in dirnames:
+        if dirname == directory_name:
+            # Found the directory
+            directory_path = os.path.join(dirpath, dirname)
+            print("Directory found:", directory_path)
+            break
+
+if not os.path.exists(directory_path)::
+    raise FileNotFoundError(f"Directory '{directory_name}' not found. Be sure you have installed Gratsid")
+
+sys.path.append(directory_path)
+from gratsid_tf_gpu_functions_SHARED import *
+print(f"TensorFlow has access to the following devices:\n{tf.config.list_physical_devices()}")
+
+########### Data directory ###########
 soln_folder_path='/home/giacomo/Documents/Denoiser_GPS/Wordwide_dataset/sols_tables_'
-data_folder_path='/home/giacomo/Documents/Denoiser_GPS/Wordwide_dataset/data_bank/'
-names=id_names_npz(soln_folder_path+components[0])
+components=['E/','N/']
 gen_jjj = np.vectorize(lambda x,y,z: dt.date.toordinal(dt.date(x,y,z)))
-name=names[0]
 
 sa_coeff=0
 tr_coeff=0
