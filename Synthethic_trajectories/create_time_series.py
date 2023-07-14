@@ -1,12 +1,10 @@
 """
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-Function for generating the Fake GNSS daily displacement time-series
+Function for generating Fake GNSS daily displacement time-series
 
-@author: jon
+@author: jon, giacomo
 """
-
-
 import numpy as np
 from numpy import matlib
 import random
@@ -116,8 +114,6 @@ def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,max_step_size,noise_le
         y_dec = Adec*np.log10(1+x_dec/Tdec)
     else:
         y_dec = np.zeros(x.size)
-
-
 
     # Making the linear trend plus offset
     if mc_on == 1:
@@ -249,9 +245,6 @@ def synth_series_2(x,seas_freqs,seas_amp,sto_mul,max_nsteps,max_step_size,noise_
 
     return y_full, y_seas_sto
 
-
-
-
 ################################################################################################################################################################################################################################################################
 def get_G_from_freqs(x,freqs_in):
     G = np.zeros([x.size,2*freqs_in.size])
@@ -264,7 +257,6 @@ def get_y(series_in,G,tik_mul):
     y = np.matmul(np.matmul(np.linalg.inv(np.matmul(G.T,G)+tik_mul*np.eye(G.shape[1])),G.T),series_in)
     return y
 
-
 def get_G_from_freqs(x,freqs_in):
     G = np.zeros([x.size,2*freqs_in.size])
     for i in range(freqs_in.size):
@@ -276,18 +268,18 @@ def get_y(series_in,G,tik_mul):
     y = np.matmul(np.matmul(np.linalg.inv(np.matmul(G.T,G)+tik_mul*np.eye(G.shape[1])),G.T),series_in)
     return y
 
-
-
-
 ################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################
-## Function for getting X and Y matrices from the time series
-# 'a' is a two column matrix, the first column containing the time series, the second containing the targeted stochastic seasonal.
 def get_XY(a,each_side):
+    """
+    Function for getting X and Y matrices from the time series
+    # 'a' is a two column matrix, the first column containing the time series, the second containing the targeted stochastic seasonal
+    """
     X_sub = np.zeros([a.shape[0]-2*each_side,2*each_side+1])
     Y_sub = np.zeros([a.shape[0]-2*each_side,2*each_side+1])
     for j in range(a.shape[0])[each_side:-each_side]:
         X_sub[j-each_side,:] = a[j-each_side:j+each_side+1,0]
         Y_sub[j-each_side,:] = a[j-each_side:j+each_side+1,1]
+    
     ## Now taking diff and removing the nanmedian from each sample (this might not be optimal but can be experimented with later)
     
     X_diff = np.diff(X_sub,axis=1)
@@ -337,8 +329,13 @@ def get_XY_iqr(a,each_side):
     Y_sub = Y_sub/iqrs
     return X_diff, Y_sub, iqrs
 ################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################
-## This function takes the output and then averages th evalues corresponding to the same time in the time series
+
 def average_from_multi_output(a,mode=None):
+    
+    """
+    This function takes the output and then averages th evalues corresponding to the same time in the time series
+    """
+    
     b = np.zeros([a.shape[0]+a.shape[1]-1,a.shape[1]])
     b.fill(np.nan)
     for i in range(b.shape[1]):
@@ -364,9 +361,6 @@ def average_from_multi_output_iqr(a,iqrs,mode=None):
         out = np.nanmean(b,axis=1)
     return out
 
-
-
-################################################################################################################################
 ################################################################################################################################
 ### For the high-pass filtering attempts
 def get_non_seasonals(a,each_side,G,tik_mul):
@@ -388,4 +382,4 @@ def get_non_seasonals(a,each_side,G,tik_mul):
         pp+=1
     return out
         
-        
+    
