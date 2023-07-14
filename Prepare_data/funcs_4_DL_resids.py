@@ -22,26 +22,6 @@ import numpy as np
 import scipy.interpolate as interpolate
 import datetime as dt
 
-def derivative(t,data):
-    """
-    Compute the derivate taking into acount a variable time vector
-    
-    Parameters
-    ----------
-       t: time vector
-       data: data vector
-
-    Returns
-    ----------
-       derivative: with len(data)-1
-    """
-    if len(t)!=len(data):
-        raise ValueError('The two variables have a different length')
-        
-    derivate=np.zeros(len(t)-1)
-    for i in range(1,len(data)):
-        derivate[i-1]=(data[i]- data[i-1])/(t[i]-t[i-1])
-    return derivate
 
 def build_txt(data_folder_path,soln_folder_path,save_path,components):
     
@@ -120,7 +100,6 @@ def build_txt(data_folder_path,soln_folder_path,save_path,components):
     for c in range(len(components)-1):   
         assert len(id_names_npz(soln_folder_path+components[c])) == len(id_names_npz(soln_folder_path+components[c+1])) == len(id_names_txt(data_folder_path))
 
-    
     ########## Loading the data and solutions and saving what we need (t,disps,resids) ##################
 
     for c in range(len(components)):
@@ -178,12 +157,10 @@ def build_txt(data_folder_path,soln_folder_path,save_path,components):
             ######  Save raw data and residuals ######
             np.savetxt(fname=out_path,X=out)
         
-        
         ## save the list ##
         with open(save_path+components[c].split('/')[0]+'_list_steps.pkl', 'wb') as f:
                 pickle.dump(step_listC, f)
-
-
+            
     return
 
 
@@ -374,8 +351,6 @@ def XY_from_d_and_length(d,r,h,input_length):
     
     return X,Y,H_vector_zo,H_vector
     
-    
-    
 gen_jjj = np.vectorize(lambda x,y,z: dt.date.toordinal(dt.date(x,y,z)))
 
     
@@ -463,9 +438,7 @@ def Make_X_Y(max_gap,input_length,load_path,save_path,components):
             save_path_s = save_path+'/'+components[c]+names[i]+'.npz'       
             np.savez(file=save_path_s,X=X,Y=Y,H=H_vector,t=t,d=d,r=r,h=h,H_Vel=H_Vel,list_transient=list_transient)
     return    
-    
-    
-    
+       
 def create_XY_for_generator(load_path,save_path,components,perctr,percval,directories,write_txt=True):
     
     """
@@ -621,8 +594,7 @@ def create_XY_for_generator(load_path,save_path,components,perctr,percval,direct
         pickle.dump(list_filesTot, f)
             
     return lengths
-    
-  
+     
 def shuffle_txt(path_indexes):
     from random import shuffle
     """
@@ -932,7 +904,6 @@ def count_step_velocity(data_folder_path,soln_folder_path,save_path,components):
                 pickle.dump(step_listC, f)
     return
     
-
 def add_step(n_step,X,Y):
 
     """
@@ -969,7 +940,6 @@ def add_step(n_step,X,Y):
     
     ten_step=10
     for k in range(n_step):
-        
         ## amplitude of the step ##
         step=steps_array[random.sample(range(len(steps_array)), 1)[0]]
         ## position of the step in the example ##
