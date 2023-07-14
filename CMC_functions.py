@@ -26,7 +26,7 @@ def distance(origin, destination):
     -------
        distance_in_km : float
 
-    Examples
+    Example
     --------
        origin = (48.1372, 11.5756)  # Munich
        destination = (52.5186, 13.4083)  # Berlin
@@ -46,6 +46,35 @@ def distance(origin, destination):
     d = radius * c
 
     return d
+
+def distance_loop(df,save_flag=False,cd=None):
+    
+    """
+    Parameters
+    ----------
+        df: file of coordinates with columns=['station','latitude','longitude','altitude']
+        save_flag: bolean (if True save the list)
+        
+     Returns 
+    ----------
+        Distance_list: list of lists, where each list includes all stations at a distance shorter than a thresholds
+    """
+    
+    Distance_list=[]
+    for i in range(len(df)):
+        df_new=df[df.station!=df.station[i]]  
+        distanceT=[]
+        for st in range(len(df_new)): 
+            dis=distance([df_new.latitude.iloc[st],df_new.longitude.iloc[st]], [df.latitude.iloc[i],df.longitude.iloc[i]])
+            if dis< thr:
+                distanceT.append([df_new.station[st],dis])
+        Distance_list.append(distanceT)
+   
+    if save_flag==True:
+        with open(cd+'Distance_list', "wb") as fp:   #Pickling
+            pickle.dump(Distance_list, fp)
+            
+    return Distance_list
 
 def weighted_median(values, weights):
     """
@@ -115,7 +144,8 @@ def build_correlation_matrix(df,cd,new_cols):
         new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
         dfs.rename(new_names_map, axis=1, inplace=True)
         t=list(dfs.YYMMDD)
-        
+
+        ii=df.index[df.station == station].tolist()[0]
         df_new=df[df.station!=df.station[i]]  
         for st in range(len(df_new)): 
             dfS = pd.read_csv(soln_folder_path+'/'+str(df_new.station[st])+'.txt', 
@@ -143,102 +173,180 @@ def build_correlation_matrix(df,cd,new_cols):
             ten_step+=5
     return corr
 
-def CMF(comp,t,d,r,df,station,thr_distance,cd_base,cd_data,weight_flag=None):
+def CMF(file,df,thr_distance,new_cols,weight_flag=None,Distance_file=None,save_flag=False,save_folder=None):
 
     """
     Return the CMC residuals
     
     Parameters
     ----------
-       comp: component
-       t: time vector
-       d: raw data
-       r: original residual
-       df: all stations employed
-       thr_distance: distance threshold
-       cd_base: folder of the correlation matrix
-       cd_data: folder of the data
-       weight_flag: if True the median is weighted 
-
+        file: reference station you want to denoise (txt file)
+        df: file of coordinates with columns=['station','latitude','longitude','altitude']
+        thr_distance: distance threshold
+        new_cols: names of the columns of a txt file
+        weight_flag: if True the median is weighted 
+        Distance_file: list of lists, where each list includes all stations at a distance shorter than a thresholds
+        save_flag: bolean (if True save the list)
+        save_cd: cd where to save
+       
     Returns
     ----------
-       t,r,d,median_res/median_resW
+        dataframe with CMF results
     """
-
-    corr=np.load(cd_base+'Corr_'+comp+'.npy')
+    
+    if not any('Gratsid' in element for element in new_cols):
+        raise ValueError("The string 'Gratsid' is not present in the input columns")
+    if not any('E' or 'U' or 'N' in element for element in new_cols):
+        raise ValueError("At least one component has to be present in the input columns")
+        
+    ### Load the dataframe of the reference station
+    dfs = pd.read_csv(file+'.txt',delim_whitespace=True,header=0,on_bad_lines='skip')
+    data=dfs.values
+    new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
+    dfs.rename(new_names_map, axis=1, inplace=True)
+    t=list(dfs.YYMMDD)
 
     # Index of the station
     ii=df.index[df.station == station].tolist()[0]
     df_new=df[df.station!=df.station[ii]] 
-
-    ##### Correlation has to be positive #####
-    indiciS=np.where((corr[ii,:,1]>0.1))[0]
-    corre_ath=corr[ii,indiciS,1] #correlation
-    len_ath=corr[ii,indiciS,2] #intersect_length
-    distance_ath=corr[ii,indiciS,0] #distance
-    df_new=df_new.iloc[indiciS] #stations to look at
-
-    ##### Distance has to be positive #####
-    above_th=np.where(distance_ath<thr_distance)[0]
-    corre_ath=corre_ath[above_th]
-    len_ath=len_ath[above_th]
-    distance_ath=distance_ath[above_th]
-    df_new=df_new.iloc[above_th]  
     
+    Distance_list=[]
+    len_ath=[]
+    indiciR=[]
+    indiciS=[]
+    if Distance_file is not None:
+        if os.path.isfile(Distance_file):
+            print("Import Distance file")
+            with open("Distance_file", "rb") as fp:  
+                Distance_list = pickle.load(fp)
+        
+        stations_to_use=np.array(Distance_list)[:,0]
+        for st in range(len(stations_to_use)): 
+            dfS = pd.read_csv(soln_folder_path+'/'+str(df_new.station[st])+'.txt', 
+                                   delim_whitespace=True,header=0,on_bad_lines='skip')
+            new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
+            dfS.rename(new_names_map, axis=1, inplace=True)  
+            ts=list(dfS.YYMMDD)
+            ### Intersections in time
+            indici1=np.nonzero(np.in1d(ts, t))[0]
+            indici2=np.nonzero(np.in1d(t, ts))[0]
+            indiciR.append(indici1)
+            indiciS.append(indici2)
+            
+    else:
+        print("Calculate distance")
+        for st in range(len(df_new)): 
+            dis=distance([df_new.latitude.iloc[st],df_new.longitude.iloc[st]], [df.latitude.iloc[i],df.longitude.iloc[i]])
+            if dis< thr:
+                Distance_list.append([df_new.station[st],dis])
+                dfS = pd.read_csv(soln_folder_path+'/'+str(df_new.station[st])+'.txt', 
+                                   delim_whitespace=True,header=0,on_bad_lines='skip')
+                new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
+                dfS.rename(new_names_map, axis=1, inplace=True)  
+                ts=list(dfS.YYMMDD)
+                ### Intersections in time
+                indici1=np.nonzero(np.in1d(ts, t))[0]
+                indici2=np.nonzero(np.in1d(t, ts))[0]
+                indiciR.append(indici1)
+                indiciS.append(indici2)
+            
+    distance_ath=np.array(Distance_list)[:,1]
+    stations_to_use=np.array(Distance_list)[:,0]
+    len_ath=np.array([len(ind) for ind in in indiciR])
+
     ##### if no it means CMF cannot be applyed - the station is isolated
-    if len(len_ath)!=0:
+    if len(Distance_list)!=0:
         ##### I normalize intersect_length - distance
         len_athN=(len_ath - min(len_ath)) / (max(len_ath) - min(len_ath))
         distance_athN=(distance_ath - min(distance_ath)) / (max(distance_ath) - min(distance_ath))
 
         ##### Here I allocate the residual of the other stations
-        matrix_median=np.zeros([len(df_new),len(t)])
-        n=len(df_new)
+        matrix_median=np.zeros([len(stations_to_use),len(t),len(components])
+        n=len(stations_to_use)
         ten_step=5
 
         ##### I Start the loop 
-        for st in range(len(df_new)): 
-            ts=np.loadtxt(cd_data+comp+'/'+df_new.station.iloc[st]+'.txt')[:,0]
-            indici1=np.nonzero(np.in1d(ts, t))[0]
-            if len(indici1)>0:
-                indici2=np.nonzero(np.in1d(t, ts))[0]
-                rs=np.loadtxt(cd_data+comp+'/'+df_new.station.iloc[st]+'.txt')[:,2]
-                matrix_median[st,indici2]=rs[indici1]
-
-            '''    
-            if (st/n)*100 > ten_step:
+        for st in range(len(stations_to_use)): 
+            dfS = pd.read_csv(cd+'/'+str(stations_to_use[st])+'.txt',delim_whitespace=True,header=0,on_bad_lines='skip')
+            new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
+            dfS.rename(new_names_map, axis=1, inplace=True)  
+            ts=list(dfS.YYMMDD)
+            
+            indici1=indiciT[st]
+            indici2=indiciS[st]
+        
+            for c in range(len(components)):
+                ### take Residual of the component
+                rs=dfS[components[c]]-dfS['Gratsid_'+components[c]]
+                matrix_median[st,indici2,c]=rs[indici1]
+            
+            if (st/len(stations_to_use))*100 > ten_step:
                 print(str(ten_step)+'%')
                 ten_step+=5
-            '''
-        ##### the wheights are based on the temporal length of 1 time series and its distance
-        combined_weights=len_athN*distance_athN
-        median_res=np.zeros([len(t)])
-        median_resW=np.zeros([len(t)])
+        
+        median_resT=[]
+        median_resWT=[]
+        for c in range(len(components)):              
+            ##### the wheights are based on the temporal length of 1 time series and its distance
+            combined_weights=len_athN*distance_athN
+            median_res=np.zeros([len(t)])
+            median_resW=np.zeros([len(t)])
 
-        ###### compute the median
-        for kk in range(matrix_median.shape[1]):
-            indici_zero=np.where(matrix_median[:,kk]!=0)[0]
-            median_res[kk]=np.nanmedian(matrix_median[indici_zero,kk])  
-            if len(indici_zero)==0:  
-                median_resW[kk]=np.nan
-            else:
-                median_resW[kk]=weighted_median(matrix_median[indici_zero,kk], combined_weights[indici_zero])
+            ###### compute the median
+            for kk in range(matrix_median.shape[1]):
+                indici_zero=np.where(matrix_median[:,kk]!=0)[0]
+                median_res[kk]=np.nanmedian(matrix_median[indici_zero,kk])  
+                if len(indici_zero)==0:  
+                    median_resW[kk]=np.nan
+                else:
+                    median_resW[kk]=weighted_median(matrix_median[indici_zero,kk], combined_weights[indici_zero])
     
-        ###### if there are some nans, then interpolate
-        if np.isnan(median_res).any():
-            print(max_consecutive_nan(median_res))
-            indexes=[ind[0] for ind in np.argwhere(~np.isnan(median_res))] 
-            f = interpolate.interp1d(t[indexes], median_res[indexes],fill_value="extrapolate")
-            median_res = f(t)
-            fW = interpolate.interp1d(t[indexes], median_resW[indexes],fill_value="extrapolate")
-            median_resW = fW(t)
+            ###### if there are some nans, then fill with 0
+            if np.isnan(median_res).any():
+                print(max_consecutive_nan(median_res))
+                indexes=[ind[0] for ind in np.argwhere(~np.isnan(median_res))] 
+                median_res[indexes]=0
+                median_resW[indexes]=0
+                
+                #f = interpolate.interp1d(t[indexes], median_res[indexes],fill_value="extrapolate")
+                #median_res = f(t)
+                #fW = interpolate.interp1d(t[indexes], median_resW[indexes],fill_value="extrapolate")
+                #median_resW = fW(t)
 
-        if weight_flag==True:   
-            return t,r,d,median_resW
-        else:
-            return t,r,d,median_res
+            median_resWT.append(median_resW)
+            median_resT.append(median_res)
+    
+        median_resWT=np.array(median_resWT)  
+        median_resT=np.array(median_resT)  
+
+        filtered=np.vstack([data,median_resT,median_resWT])
+        filtered=np.transpose(filtered)
+
+        namesTM=[]
+        for c in components:
+            namesTM.append(['Med_'+c])
+            namesTW.append(['MedW_'+c])
+                
+        namesTM = [item for sublist in namesTM for item in sublist]
+        namesTW = [item for sublist in namesTW for item in sublist]
+            
+        new_cols=new_cols+namesTM+namesTW
+        dfCMF = pd.DataFrame(filtered[:] , columns=new_cols[1:])
+        dfCMF['YYMMDD']= pd.to_datetime(dfCMF['YYMMDD']).astype('datetime64[ns]')
+        datetime_index = pd.DatetimeIndex(dfCMF.YYMMDD)
+        
+        # Check for duplicates
+        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+        # Check if all dates are increasing
+        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+
+        if save_flag==True:  
+            #date columns as first
+            dfCMF.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
     else:
-        return t,r,d,0
+        print ('CMF cannot be applyed - the station is isolated')
+    
+return
 
 def denoise(comp,t,d,r,df,station,thr_distance,cd_base,cd_data,weight_flag=None):
 
