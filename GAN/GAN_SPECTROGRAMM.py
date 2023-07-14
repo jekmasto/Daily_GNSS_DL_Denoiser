@@ -432,7 +432,6 @@ def generate_and_save_images(model, epoch, test_input,image_batch,random_input_b
     ############ TSNE ############
     data_reduced = np.concatenate((train_images, predictions,random_input_batch), axis=0)
     tsne_results = pd.DataFrame(tsne.fit_transform(data_reduced))
-
     
     #scatter plot
     fig4,axes=plt.subplots(1,2,figsize=(20,15))
