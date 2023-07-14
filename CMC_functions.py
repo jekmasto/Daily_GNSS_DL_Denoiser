@@ -395,6 +395,78 @@ def build_correlation_matrix(df,soln_folder_path,new_cols,save_flag=False,save_f
         
     return corr
 
+def build_correlation_matrix(df,soln_folder_path,new_cols,components,save_flag=False,save_folder=True):
+    
+    """
+    Parameters
+    ----------
+        df: file of coordinates with columns=['station','latitude','longitude','altitude']
+        soln_folder_path: folder where you have the txt file
+        new_cols: names of the columns of a txt file
+        components: components to use (esempio ['E','N'])
+        save_flag: bolean (if True save the numpy array)
+        save_folder: folder where save the correlation matrix
+
+    Returns
+    ----------
+        corr: Correlation matrix with a dimension of [len(stations),len(stations)-1,5]
+              the last three values are: distance between stations [0], number days in common [1], Pearson correlation coefficient for the three components [2,3,4]
+    """
+    
+    if not any('GrAtSiD' in element for element in new_cols):
+        raise ValueError("The string 'Gratsid' is not present in the input columns")
+    if not any('E' or 'U' or 'N' in element for element in new_cols):
+        raise ValueError("At least one component has to be present in the input columns")
+    if not any('station' in element for element in list(df.columns)):
+        raise ValueError("The string 'station' is not present in the input columns in the file of the stations coordinates ")
+
+    #### Take coordinates of stations that are inside the folder of interest
+    stations=id_names_txt(soln_folder_path)
+    df = df[df['station'].isin(stations)]
+   
+    ten_step=10
+    n=len(df)
+    corr=np.zeros([len(df),len(df)-1,2+len(components)]) 
+
+    for i in range(len(df)):
+        ### Load the dataframe of the reference station
+        station=df.station.iloc[i]
+        file_I=soln_folder_path+'/'+str(station)+'.txt'
+        dfs = pd.read_csv(file_I,delim_whitespace=True,header=0,on_bad_lines='skip', skiprows=check_rows(file_I,new_cols))
+        new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
+        dfs.rename(new_names_map, axis=1, inplace=True)
+        t=list(dfs.YYMMDD)
+        
+        df_new=df[df.station!=station]  
+        for st in range(len(df_new)): 
+            file_I=soln_folder_path+'/'+str(df_new.station.iloc[st])+'.txt'
+            dfS = pd.read_csv(file_I, delim_whitespace=True,header=0,on_bad_lines='skip',skiprows=check_rows(file_I,new_cols))
+            new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
+            dfS.rename(new_names_map, axis=1, inplace=True)  
+            ts=list(dfS.YYMMDD)
+            ### Intersections in time
+            indici1=np.nonzero(np.in1d(ts, t))[0]
+
+            # If there is at least one day in common
+            if len(indici1)>0:
+                indici2=np.nonzero(np.in1d(t, ts))[0]
+                dis=distance([df_new.latitude.iloc[st],df_new.longitude.iloc[st]], [df.latitude.iloc[i],df.longitude.iloc[i]])
+                corr[i,st,0]=dis
+                corr[i,st,1]=len(indici1)
+                for c in range(len(components)):
+                    r=dfs[components[c]]-dfs['GrAtSiD_'+components[c]]
+                    rs=dfS[components[c]]-dfS['GrAtSiD_'+components[c]]
+                    cc=np.corrcoef(rs[indici1],r[indici2])
+                    corr[i,st,2+c]=cc[0,1]
+        
+        if (i/n)*100 > ten_step:
+            print(str(ten_step)+'%')
+            ten_step+=5
+    if save_flag==True:
+        np.save(save_folder+'Correlation_matrix',corr)
+        
+    return corr
+
 def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,weight_flag=None):
 
     """
