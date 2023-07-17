@@ -190,7 +190,7 @@ def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_
             ###### put optional known steps ######
             if step_array[c]:
                 ST=step_arrayT[:,:,c][~np.isnan(dato_interpT[:,:,c]).any(axis=1)]  
-                real_st=np.argwhere(step_arrayT[:,:,0]==1)
+                real_st=np.argwhere(ST==1)
                 predictions_stepD=np.array(predictions_stepD)
                 predictions_stepD[real_st[:,0],real_st[:,1]]=1
                     
