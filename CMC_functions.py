@@ -489,7 +489,7 @@ def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,wei
     ----------
        t,r,d,median_res/median_resW
     """
-    if comp!='E' or  comp!='N' or  comp!='U'
+    if comp!='E' or  comp!='N' or  comp!='U':
         raise ValueError("component must be a string like 'E' or 'N' or 'U' ")
     
     corr=np.load(cd_base+'Corr_'+comp+'.npy')
