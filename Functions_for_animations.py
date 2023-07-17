@@ -321,9 +321,9 @@ def load_step(file):
     
 class Station:
 
-"""
-Create a class for a given station
-"""
+    """
+    Create a class for a given station
+    """
 
     def __init__(self, name,starting_date,last_date,components,cd):
         """
