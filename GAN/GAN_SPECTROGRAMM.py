@@ -37,17 +37,20 @@ save_path = cd_saving
 
 ############ Set the components ############
 components=['E/','N/'] ################### solo U 'U/'
+components=['E/','N/'] ################### solo U 'U/'
+comp_t=[components[i].split('/')[0] for i in range(len(components))]
+comp_t = ['_'.join(comp_t)]
 
 ############ Build the tensor 
 years=3
-R_Residuals=np.load(cd_saving+'/E_N_Residuals_'+str(years)+'years.npy')  #U_Residuals
+R_Residuals=np.load(cd_saving+'/'+comp_t+'_Residuals_'+str(years)+'years.npy')  
 R_Residuals=np.vstack(np.transpose(R_Residuals,[2,0,1]))
 
 ### shuffle ###
 idx = np.random.permutation(len(R_Residuals))
 R_Residuals = np.asarray(R_Residuals)[idx]
 
-############ Random data ############
+############ Draw distribution of Random data ############
 n=np.array(R_Residuals).shape[1]
 Std=np.array(R_Residuals).std()
 Mean=np.array(R_Residuals).mean() 
@@ -58,11 +61,12 @@ print('Real data shape: ',R_Residuals.shape)
 print('Random data shape: ',random_input.shape)
 
 #################### Compute PSD ####################
-n_ftt_w=95 #95
+n_ftt_w=n/12 #95
 Sxx=[] #real method 1
 SxxI=[] #real for training
 S_RT=[] #random 
-fs=1
+
+fs=1 # 1 day
 Time=R_Residuals.shape[1]
 for jj in range(R_Residuals.shape[0]):
     f,t,Sx=Spectrogram(Time,  R_Residuals[jj,:],fs)
@@ -70,7 +74,6 @@ for jj in range(R_Residuals.shape[0]):
     #S=np.expand_dims(S,axis=2)
     #S=np.array(tf.image.resize(S, (S.shape[0]-1,S.shape[1])))
     #S=np.squeeze(S)
-
     #Sx=np.expand_dims(Sx,axis=2)
     #Sx=np.array(tf.image.resize(Sx, (Sx.shape[0]-1,Sx.shape[1])))
     #Sx=np.squeeze(Sx)
@@ -132,6 +135,14 @@ def make_generator_model(input_shape):
     return model
 '''
 def make_generator_model(input_shape):
+
+    """
+    Generator model to create fake examples 
+    Parameters
+    ----------
+        Input shappe: shape of 1 spectrogramm
+    """
+    
     model = tf.keras.Sequential()
     model.add(layers.Dense(6*6*192, use_bias=False, input_shape=input_shape))
     model.add(layers.BatchNormalization())
@@ -153,6 +164,11 @@ def make_generator_model(input_shape):
     return model
 
 def make_discriminator_model():
+
+    """
+    Discriminator model to classify fake and real examples 
+    """
+    
     model = tf.keras.Sequential()
     model.add(layers.Conv2D(48, (5, 5), strides=(2, 2), padding='same',
                                      input_shape=[train_images.shape[1], train_images.shape[2], 1]))
@@ -163,14 +179,15 @@ def make_discriminator_model():
     model.add(layers.Conv2D(192, (5, 5), strides=(2, 2), padding='same'))
     model.add(layers.LeakyReLU())
     #model.add(layers.Dropout(0.2))
-
     model.add(layers.Flatten())
     model.add(layers.Dense(1))
 
     return model
 
 def discriminator_loss(real_output, fake_output):
+    ### A real example is from 0 class
     real_loss = cross_entropy(tf.zeros_like(real_output), real_output)
+    ### A fake example is from 1 class
     fake_loss = cross_entropy(tf.ones_like(fake_output), fake_output)
     return real_loss,fake_loss
 
@@ -181,6 +198,15 @@ def generator_loss(fake_output):
 # This annotation causes the function to be "compiled".
 @tf.function
 def train_step(images):
+    
+    """
+    Compute and minimize losses for each batch samples 
+    
+    Parameters
+    ----------
+        images: 1 batch of images
+    """
+    
     noise = tf.random.normal([BATCH_SIZE, noise_dim]) #,mean=train_images.mean(),stddev=train_images.std()
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
@@ -191,6 +217,7 @@ def train_step(images):
 
         gen_loss = generator_loss(fake_output)
         real_loss,fake_loss=discriminator_loss(real_output, fake_output)
+        ### Total loss
         disc_loss = real_loss + fake_loss
 
     gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
@@ -201,9 +228,10 @@ def train_step(images):
     return real_loss,fake_loss,gen_loss
 
 #################### Build Generator ####################
-input_shape = (10,)
+input_shape = (100,)
 generator = make_generator_model(input_shape)
 noise = tf.random.normal([1, input_shape[0]]) #,mean=train_images.mean(),stddev=train_images.std()
+## Make an example of how a fake spectrogram looks like before training (it is basically white noise)
 generated_image = generator(noise, training=False)
 plt.figure()
 plt.pcolormesh(tf.squeeze(generated_image[0, :, :, 0]),shading='gouraud',cmap='hot_r')
@@ -222,9 +250,8 @@ print (decision)
 EPOCHS = 500
 noise_dim = input_shape[0]
 num_examples_to_generate = BATCH_SIZE
-# You will reuse this seed overtime (so it's easier)
-# to visualize progress in the animated GIF)
 
+# You will reuse this seed overtime (so it's easier)
 seed = tf.random.normal([num_examples_to_generate, noise_dim]) #,mean=train_images.mean(),stddev=train_images.std()
 seed_PCA = tf.random.normal([train_images.shape[0], noise_dim]) #,mean=train_images.mean(),stddev=train_images.std()
 
