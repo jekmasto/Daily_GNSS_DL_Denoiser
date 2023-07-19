@@ -384,6 +384,14 @@ class Station:
             dfs['YYMMDD'].astype('datetime64[ns]')
 
             dfs=dfs[dfs.YYMMDD>self.starting_date.date()]
+
+            if len(dfs)>0:
+                datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+                # Check for duplicates
+                assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+                # Check if all dates are increasing
+                assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+
         return dfs
     
     def apply_gratsid(self,vectorT,data,options,use_known_steps,df_stepsAC=None,df_stepsEC=None):
@@ -616,7 +624,13 @@ def avaliable_stations_vel(soln_folder_path,list_stations,t,new_cols):
         dfs.rename(new_names_map, axis=1, inplace=True)
         #transform to the same datetime format!!
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
-    
+
+        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+        # Check for duplicates
+        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+        # Check if all dates are increasing
+        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+
         listdfs=list(dfs['YYMMDD'])
         both = set(listT).intersection(listdfs ) #datetime elements in common
         indices_A =[listT.index(x) for x in both]
@@ -674,7 +688,13 @@ def avaliable_stations(soln_folder_path,list_stations,t):
             dfs.loc[i, 'YYMMDD'] = datetime.strptime(str(int(dfs['year'][i]))+str('-')+str(int(dfs['months'][i]))+'-'+str(int(dfs['days'][i])), '%Y-%m-%d').date()
 
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
-    
+
+        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+        # Check for duplicates
+        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+        # Check if all dates are increasing
+        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+
         listdfs=list(dfs['YYMMDD'])
         both = set(listT).intersection(listdfs ) #datetime elements in common
         indices_A =[listT.index(x) for x in both]
@@ -713,6 +733,13 @@ def compute_derivative(soln_folder_path,list_stations,save_folder):
         dfs.rename(new_names_map, axis=1, inplace=True)
         #transform to the same datetime format!!
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
+
+        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+        # Check for duplicates
+        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+        # Check if all dates are increasing
+        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+ 
         y=dfs.values[:,1:]
         y_vel=np.zeros([y.shape[0]-1,y.shape[1]])
     
@@ -735,6 +762,7 @@ def compute_derivative(soln_folder_path,list_stations,save_folder):
         my_column = dfvel.pop('YYMMDD')
         dfvel.insert(0, my_column.name, my_column) 
         dfvel.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
+    
     return print('finished')
 
 def conversion_Nevada(cd,cd_saving):
