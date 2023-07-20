@@ -919,3 +919,83 @@ def hampel_filter(data, window_size=None, n_sigma=None,threshold = None):
     non_outlier_indices = np.array(non_outlier_indices)
     
     return np.array(filtered_data), outlier_indices, non_outlier_indices
+
+
+def remove_trend(save_folder,new_cols,save_folder_vel):
+    from scipy.stats import linregress
+    
+    """
+    Compute and remove a linear trend from a list of time-series
+
+    Parameters
+    ----------
+       save_folder: input folder 
+       new_cols: list of names of the columns of each new txt files
+       save_folder_vel: folder where saving new txt files detrended
+    
+    Returns
+    ----------
+       Create new txt files removing trend
+    """
+
+    list_stations=id_names_txt(save_folder)
+    
+    for station in list_stations: #random_stations
+        station=station.split('.txt')[0]
+
+        ## expected number of columns
+        n=len(new_cols)
+        dfs = pd.read_csv(save_folder+'/'+str(station)+'.txt', delim_whitespace=True,header=0,on_bad_lines='skip')
+        ## skip lines with the wrong number of columns
+        dfs = dfs[dfs.apply(lambda row: len(row) == n, axis=1)]
+        ## Reset the index if needed
+        dfs = dfs.reset_index(drop=True)
+        dfs=dfs.dropna()
+        
+        if len(dfs)>step:
+            new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
+            dfs.rename(new_names_map, axis=1, inplace=True)
+            #transform to the same datetime format!!
+            dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
+            datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+            
+            # Check for duplicates
+            print(station)
+            assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+            # Check if all dates are increasing
+            assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+   
+            y=dfs.values[:,1:]
+            y_vel=np.zeros([y.shape[0],y.shape[1]])
+    
+            ###### Derivative ######
+            # time vector
+            df_dates = dfs['YYMMDD'].apply(lambda x: x.date())
+            days_ago=df_dates[0]-df_dates
+            days_ago_as_int=np.array([abs(da.days) for da in days_ago]).astype('int')
+           
+            for k in range(y.shape[1]):
+                yy=np.array(y[:,k]).astype('float')
+                trend=linregress(days_ago_as_int,yy)
+                trend_vector=days_ago_as_int*trend.slope+trend.intercept
+                y_vel[:,k]=yy-trend_vector
+    
+            #y=np.diff(y,axis=0)
+            dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
+            dfvel['YYMMDD']  = pd.Series(dtype='float64') 
+            dfvel['YYMMDD']=list(dfs['YYMMDD'])[:]
+            dfvel['YYMMDD']= pd.to_datetime(dfvel['YYMMDD']).astype('datetime64[ns]')
+        
+            #date columns as first
+            my_column = dfvel.pop('YYMMDD')
+            dfvel.insert(0, my_column.name, my_column) 
+            dfvel.to_csv(save_folder_vel+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
+            
+            datetime_index = pd.DatetimeIndex(dfvel.YYMMDD)
+            # Check for duplicates
+            assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+
+            # Check if all dates are increasing
+            assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+      
+    return print('Finished')
