@@ -397,7 +397,7 @@ def build_correlation_matrix(df,soln_folder_path,new_cols,Reference,save_flag=Fa
         
     return corr
 
-def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,weight_flag=None):
+def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,new_cols,weight_flag=None):
 
     """
     Return the CMC residuals
@@ -414,12 +414,16 @@ def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,wei
        thr_distance: distance threshold
        cd_base: folder of the correlation matrix
        cd_data: folder of the data
+       new_cols: names of the columns of a txt file
        weight_flag: if True the median is weighted 
 
     Returns
     ----------
        t,r,d,median_res/median_resW
     """
+    if not any('GrAtSiD' in element for element in new_cols) or not any('DL' in element for element in new_cols):
+        raise ValueError("The string 'GrAtSiD' or 'DL' is not present in the input columns")
+         
     if comp!='E' or  comp!='N' or  comp!='U':
         raise ValueError("component must be a string like 'E' or 'N' or 'U' ")
     
@@ -817,6 +821,6 @@ t=np.loadtxt(cd_data+comp+'/'+station+'.txt')[:,0]
 d=np.loadtxt(cd_data+comp+'/'+station+'.txt')[:,1]
 r=np.loadtxt(cd_data+comp+'/'+station+'.txt')[:,2]
 
-t,r,d,median_res=denoise(comp,t,d,r,df,Reference,station,thr_distance,cd_base,cd_data)
+t,r,d,median_res=denoise(comp,t,d,r,df,Reference,station,thr_distance,cd_base,cd_data,new_cols)
 plot_CMC_correlation(t,r,d,median_res,comp,station)
 """
