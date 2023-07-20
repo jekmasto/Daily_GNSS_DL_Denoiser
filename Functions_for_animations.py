@@ -1343,14 +1343,9 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
 
                         sss+=1
 
-
     if coordinates_flag==False:
         os.remove(coord_file)                   
                                
     return print('Finished')   
 
-cd='/Users/giacomo/Documents/PhD/Papers/GNSS_DENOISER/Bobby'
-file_coord=cd+'/stations_coordinates.txt'
-file_step=cd+'/steps.txt'
-earthquakes_file=cd+'/Earthquakes_USGS.txt'
-df_stepsAC,df_stepsEC=create_step_file(cd,file_coord,file_step,earthquakes_file,save_Flag=False)
+
