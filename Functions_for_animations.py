@@ -220,8 +220,9 @@ def has_two_numbers_before_hyphen(input_str):
     import re
 
     """
-    To check if the character '-' is inside a string and is preceded by two numbers,
+    To check if the character '-' is inside the input string and is preceded by two numbers (like in '178-90')
     """
+    
     pattern = r'\d\d-'  # Regular expression pattern for two numbers followed by '-'
     return bool(re.search(pattern, input_str))
 
