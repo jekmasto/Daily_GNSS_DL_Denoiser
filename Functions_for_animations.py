@@ -1005,3 +1005,137 @@ def remove_trend(save_folder,new_cols,save_folder_vel):
             assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
       
     return print('Finished')
+
+def create_step_file(cd,file_coord,file_step,earthquakes_file,save_Flag=False):
+
+    """
+    Create step files to be used by GrAtSiD
+    
+    Parameters
+    ----------
+        cd: input directory
+        file_coord: file coordinates
+        file_step: file of steps (download it from Nevada)
+        earthquakes_file: file with all earthquakes downloadable from USGS
+        save_Flag: if True save the step and the earthquake file
+
+    Returns
+    ----------
+        df_stepsAC: dataframe of artificial steps with columns ['station','YYMMDD','number','kind']
+        df_stepsEC: dataframe of earthquake-related steps with columns ['station','YYMMDD','number','kind','distance1','distance2','Mw','event_ID','tgratsid']
+    """
+    
+    #import list of all stations
+    df = pd.read_csv(file_coord, delimiter=',',names=['station','latitude','longitude'],header=None)
+
+   #split steps in a file with antenna changes and another with earthquakes-related steps
+    with open(file_step) as f:
+        contents = f.read()
+
+    output1, output2 = contents.split('\n\n')
+
+    data_list1 = output1.split('\n')
+    data_list1 = [line.split() for line in data_list1]
+    df_stepsA = pd.DataFrame(data_list1, columns=['station','YYMMMDD','number','Change_type'])
+
+    data_list2 = output2.split('\n')
+    data_list2 = [line.split() for line in data_list2]
+    df_stepsE = pd.DataFrame(data_list2, columns=['station','YYMMMDD','number','distance1','distance2','Mw','event_ID'])
+
+    #pick steps of stations employed in the study
+    df_stepsAC=df_stepsA[np.isin(df_stepsA['station'].to_numpy(), list(df.station))]
+    df_stepsEC=df_stepsE[np.isin(df_stepsE['station'].to_numpy(), list(df.station))]
+    dates=df_stepsEC['YYMMMDD']
+    split_s=[0,2,5,7] #indexes where you split the string date (e.g. 08AUG22)
+    monthsN=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+    j=0
+    for d in dates:
+        splittata = []
+        for i in range(len(split_s)-1):
+            splittata.append(d[split_s[i] :split_s[i+1]])
+        if int(splittata[0][0])!=9:
+            splittata[0]=int('20'+splittata[0])
+        else:
+            splittata[0]=int('19'+splittata[0])
+        df_stepsEC['YYMMMDD']=datetime.datetime.strptime(str(int(splittata[0]))+str('-')+str(int(monthsN.index(splittata[1])+1))+'-'+str(int(splittata[2])), '%Y-%m-%d').date()
+
+    dates=df_stepsAC['YYMMMDD']
+    j=0
+    for d in dates:
+        splittata = []
+        for i in range(len(split_s)-1):
+            splittata.append(d[split_s[i] :split_s[i+1]])
+        if int(splittata[0][0])!=9:
+            splittata[0]=int('20'+splittata[0])
+        else:
+            splittata[0]=int('19'+splittata[0])
+        df_stepsAC['YYMMMDD']=datetime.datetime.strptime(str(int(splittata[0]))+str('-')+str(int(monthsN.index(splittata[1])+1))+'-'+str(int(splittata[2])), '%Y-%m-%d').date()
+        
+    if save_Flag==True:
+        df_stepsAC.to_csv(cd+'/Steps_antennas.txt', header=None, index=None, sep=' ', mode='a')
+        df_stepsEC.to_csv(cd+'/Steps_earthquakes.txt', header=None, index=None, sep=' ', mode='a')
+    
+    new_colsAC=['station','YYMMDD','number','kind']
+    new_names_map = {df_stepsAC.columns[i]:new_colsAC[i] for i in range(len(new_colsAC))}
+    df_stepsAC.rename(new_names_map, axis=1, inplace=True)  
+    new_colsEC=['station','YYMMDD','number','distance1','distance2','Mw','event_ID']
+    new_names_map = {df_stepsEC.columns[i]:new_colsEC[i] for i in range(len(new_colsEC))}
+    df_stepsEC.rename(new_names_map, axis=1, inplace=True)
+
+    ############## Upload steps ##############
+    '''
+    df_stepsAC = pd.read_csv(cd+'/Steps_antennas.txt', delim_whitespace=True,header=None,
+                            on_bad_lines='skip',names=['station','YYMMDD','number','kind'])
+    df_stepsEC = pd.read_csv(cd+'/Steps_earthquakes.txt', delim_whitespace=True,header=None,
+                            on_bad_lines='skip',names=['station','YYMMDD','number','distance1','distance2','Mw','event_ID'])
+    '''
+    Min_Mw=float(min(df_stepsEC['Mw'])) #minum magnitude that has caused a step
+   
+    ############## Import all earthquakes with a magnitude higher than 4.5 form 2008 to 2022 ##############
+    E_dfO=pd.read_csv(earthquakes_file, delimiter=',',names=['time','latitude','longitude','depth','mag','magType','nst','gap','dmin','rms','net','id','updated','place','type','horizontalError','depthError','magError','magNst','status','locationSource','magSource'],header=0)
+    E_df=E_dfO.copy()
+    E_df=E_df.iloc[: , :6] #['time','latitude','longitude','depth','mag','magType']
+    E_df['event_ID'] = pd.Series(dtype='string')
+    E_df['event_ID']=E_dfO['id']
+    E_df=E_df[E_df['mag']>Min_Mw] #all earthquakes with a magnitude higher than Min_Mw
+    E_df.reset_index(drop=True, inplace=True) #reset indexes
+    E_df['time_gratsid'] = pd.Series(dtype='int')
+
+    ############## Normalize time (in hours) to 1 --> necessary to gratsid ##############
+    for i in range(len(E_df)):
+        norm=int(E_df['time'][i].split('T')[1].split(':')[0])/24
+        E_df.loc[i, 'time_gratsid']=norm
+
+    ############## Take only steps that are insiede the influence radius ##############
+    take_indexes=[]
+    for i in range(len(df_stepsEC)):
+        r=influence_radius(float(df_stepsEC.iloc[i]['Mw']))
+        #if r > df_stepsEC.iloc[i]['distance1'] or r> df_stepsEC.iloc[i]['distance2']:
+        take_indexes.append(i) #indexes to be considered
+    index_level_to_filter = 0
+    df_stepsEC[df_stepsEC.index.get_level_values(index_level_to_filter).isin(take_indexes)]
+    df_stepsEC.reset_index(drop=True, inplace=True) #reset indexes
+
+    ############## Take only steps that are insiede the influence radius ##############
+    take_indexes=[]
+    for i in range(len(df_stepsEC)):
+        if df_stepsEC.iloc[i]['event_ID'] in list(E_df['event_ID']):
+            take_indexes.append(i)
+
+    df_stepsEC[df_stepsEC.index.get_level_values(index_level_to_filter).isin(take_indexes)]
+    df_stepsEC.reset_index(drop=True, inplace=True) #reset indexes
+
+    df_stepsEC['tgratsid'] = pd.Series(dtype='float64') # time for gratsid
+    for i in range(len(df_stepsEC)):
+        for k in range(len( E_df)):
+            if df_stepsEC.iloc[i]['event_ID']==E_df.iloc[k]['event_ID']:
+                gtime=E_df.iloc[k]['time_gratsid']
+                df_stepsEC.loc[i,'tgratsid']= gtime
+                
+    df_stepsEC[['tgratsid']] = df_stepsEC[['tgratsid']].fillna(0) # time=0 for earthquakes not in the catalog       
+
+    #all dataframe [steps] with the same format!!!! 
+    df_stepsAC['YYMMDD'] =  pd.to_datetime(df_stepsAC['YYMMDD']).astype('datetime64[ns]')
+    df_stepsEC['YYMMDD'] =  pd.to_datetime(df_stepsEC['YYMMDD']).astype('datetime64[ns]')
+
+    return df_stepsAC,df_stepsEC
