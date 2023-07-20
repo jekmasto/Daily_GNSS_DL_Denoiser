@@ -1,4 +1,4 @@
-from Nevada_download import *
+from Nevada_downloader import *
 
 # Saving folder
 saving_cd_coord = "/Users/giacomo/Documents/PhD/Papers/GNSS_DENOISER/Chile"
