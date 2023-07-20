@@ -780,8 +780,6 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
         for k in range(y.shape[1]):
             y_vel[:,k]=derivative(days_ago_as_int,y[:,k],step)
 
-        print(y_vel.shape)
-        print(y.shape)
         #y=np.diff(y,axis=0)
         dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
         dfvel['YYMMDD']  = pd.Series(dtype='float64') 
