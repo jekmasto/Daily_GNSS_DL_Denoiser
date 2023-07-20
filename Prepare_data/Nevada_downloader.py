@@ -74,7 +74,7 @@ def import_stations(saving_cd_coord,lat_south,lat_north,lon_west,lon_east):
         except:
             print('Link does not exist or cannot be reached.')
       
-    # Filter stations that are also present in the percorso
+    # Take stations that really exist
     filtered_stations_coordinates = stations_coordinates_DEF[stations_coordinates_DEF['Station'].isin(Ex_STA)]
 
     # Overwrite the stations_coordinates file with the filtered data
