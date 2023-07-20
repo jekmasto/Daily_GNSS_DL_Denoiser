@@ -23,7 +23,7 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
 if not directory_path:
     if not os.path.exists(directory_path):
         raise FileNotFoundError(f"Directory '{directory_name}' not found. Be sure you have installed Gratsid")
-
+        
 sys.path.append(directory_path)
 from gratsid_tf_gpu_functions_SHARED import *
 print(f"TensorFlow has access to the following devices:\n{tf.config.list_physical_devices()}")
@@ -353,7 +353,8 @@ class Station:
             dfs: dataframe of the timeseries 
         """
         
-        fname=self.cd+str(self.name)+'.txt'
+        fname=self.cd+'/'+str(self.name)
+        print(fname)
         
         ## Check which rows are inside the investigated time period
         rows_to_keep=[]
@@ -364,7 +365,7 @@ class Station:
                 if che_giorno >=self.last_date.date():
                     break
             
-        dfs = pd.read_csv(self.cd+str(self.name)+'.txt', 
+        dfs = pd.read_csv(fname, 
                  delim_whitespace=True,header=0,on_bad_lines='skip',skiprows = lambda x: x not in rows_to_keep)
         
         ## Remove Nans
@@ -385,14 +386,6 @@ class Station:
             dfs['YYMMDD'].astype('datetime64[ns]')
 
             dfs=dfs[dfs.YYMMDD>self.starting_date.date()]
-
-            if len(dfs)>0:
-                datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
-                # Check for duplicates
-                assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
-                # Check if all dates are increasing
-                assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
-
         return dfs
     
     def apply_gratsid(self,vectorT,data,options,use_known_steps,df_stepsAC=None,df_stepsEC=None):
@@ -625,13 +618,7 @@ def avaliable_stations_vel(soln_folder_path,list_stations,t,new_cols):
         dfs.rename(new_names_map, axis=1, inplace=True)
         #transform to the same datetime format!!
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
-
-        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
-        # Check for duplicates
-        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
-        # Check if all dates are increasing
-        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
-
+    
         listdfs=list(dfs['YYMMDD'])
         both = set(listT).intersection(listdfs ) #datetime elements in common
         indices_A =[listT.index(x) for x in both]
@@ -689,13 +676,7 @@ def avaliable_stations(soln_folder_path,list_stations,t):
             dfs.loc[i, 'YYMMDD'] = datetime.strptime(str(int(dfs['year'][i]))+str('-')+str(int(dfs['months'][i]))+'-'+str(int(dfs['days'][i])), '%Y-%m-%d').date()
 
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
-
-        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
-        # Check for duplicates
-        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
-        # Check if all dates are increasing
-        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
-
+    
         listdfs=list(dfs['YYMMDD'])
         both = set(listT).intersection(listdfs ) #datetime elements in common
         indices_A =[listT.index(x) for x in both]
@@ -734,13 +715,6 @@ def compute_derivative(soln_folder_path,list_stations,save_folder):
         dfs.rename(new_names_map, axis=1, inplace=True)
         #transform to the same datetime format!!
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
-
-        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
-        # Check for duplicates
-        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
-        # Check if all dates are increasing
-        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
- 
         y=dfs.values[:,1:]
         y_vel=np.zeros([y.shape[0]-1,y.shape[1]])
     
@@ -763,7 +737,6 @@ def compute_derivative(soln_folder_path,list_stations,save_folder):
         my_column = dfvel.pop('YYMMDD')
         dfvel.insert(0, my_column.name, my_column) 
         dfvel.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
-    
     return print('finished')
 
 def conversion_Nevada(cd,cd_saving):
@@ -933,4 +906,3 @@ def hampel_filter(data, window_size=None, n_sigma=None,threshold = None):
     non_outlier_indices = np.array(non_outlier_indices)
     
     return np.array(filtered_data), outlier_indices, non_outlier_indices
-    
