@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thursday Jul  20 15:52:21 2023
+@author: giacomo
+
+A simple code to download GNSS daily displacement time-series from the Nevada repository [http://geodesy.unr.edu]
+
+"""
+
 import pandas as pd
 import numpy as np
 import datetime, os,requests
