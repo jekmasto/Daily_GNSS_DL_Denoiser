@@ -271,7 +271,7 @@ def import_resi(file):
                 days.append(date_d.day)
                 
                 if has_two_numbers_before_hyphen(str(values[1])): 
-                    val=str(values[1]
+                    val=str(values[1])
                     E.append(float(val.split('-')[0]))
                     N.append(float(val.split('-')[1]))
                     U.append(float(values[5]))
