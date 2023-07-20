@@ -216,6 +216,15 @@ def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_
     
         return new_t,d,PredictionsT
 
+def has_two_numbers_before_hyphen(input_str):
+    import re
+
+    """
+    To check if the character '-' is inside a string and is preceded by two numbers,
+    """
+    pattern = r'\d\d-'  # Regular expression pattern for two numbers followed by '-'
+    return bool(re.search(pattern, input_str))
+
 def import_resi(file):
 
     """
@@ -242,11 +251,14 @@ def import_resi(file):
     U=[]
     sites=[]
     date_dT=[]
-
+    lines=[]
+    
     j=0
     with open(file, 'r') as file:
         for line in file:
             line = line.strip()
+            lines.append(line)
+
             j+=1
             if line and j>2:
                 values = line.split()
@@ -256,13 +268,26 @@ def import_resi(file):
                 years.append(date_d.year)
                 months.append(date_d.month)
                 days.append(date_d.day)
-                E.append(float(values[1]))
-                N.append(float(values[2]))
-                U.append(float(values[6]))
+                
+                if has_two_numbers_before_hyphen(str(values[1])): 
+                    val=str(values[1]
+                    E.append(float(val.split('-')[0]))
+                    N.append(float(val.split('-')[1]))
+                    U.append(float(values[5]))
+                else:
+                    E.append(float(values[1]))
+                    N.append(float(values[2]))
+                    U.append(float(values[6]))
+                    
+    if has_two_numbers_before_hyphen(str(values[1])):
+        station = values[9]
+        longitudes=float(values[10])
+        latitudes=float(values[11])
         
-    station = values[10]
-    longitudes=float(values[11])
-    latitudes=float(values[12])
+    else:
+        station = values[10]
+        longitudes=float(values[11])
+        latitudes=float(values[12])
     
     E=np.array(E)*0.001
     N=np.array(N)*0.001
@@ -283,8 +308,7 @@ def import_resi(file):
     # Check if all dates are increasing
     assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
     
-    return longitudes,latitudes,dfN  
-
+    return longitudes,latitudes,dfN
 
 def load_step(file):
     """
