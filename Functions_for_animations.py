@@ -1139,3 +1139,212 @@ def create_step_file(cd,file_coord,file_step,earthquakes_file,save_Flag=False):
     df_stepsEC['YYMMDD'] =  pd.to_datetime(df_stepsEC['YYMMDD']).astype('datetime64[ns]')
 
     return df_stepsAC,df_stepsEC
+
+def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,position,suffix,cd_step,step_derivative, \
+    Remove_outliers_Flag=True,gratsid_flag=False,options_gratsid=None,exp_flag=False,alpha=2.71,Use_steps_flag=True,coordinates_flag=True,coord_file=None):
+
+    """
+    Parameters
+    ---------
+        cd: input folder
+        cd_base: folder where you have the models
+        save_folder: folder where to save data
+        t: time period of investigation
+        components: components to use (e.g. ['E','N'])
+        input_length: length of the window (integer)
+        position: position of the target within the input window
+        suffix: suffix of input files (each file is of 1 station)
+        cd_step: folder of steps
+        step_derivative: temporal step to calculate derivative to extract the trend (in days)
+        options_gratsid: options of gratsid
+        alpha: base of the exponential to control the weights of the exponential moving average (default=2.71)
+
+        --- Boolean Flags ---
+            Remove_outliers_Flag: if True Remove the outliers in a causal way
+            gratsid_flag: if True run Gratsid
+            exp_flag: if True run exponential moving average
+            Use_steps_flag: if True use information of steps
+            coordinates_flag: if True, creates a file of coordinates of cleaned stations
+        
+        coord_file: name of the coordinates file
+    """
+    componentsT=['E','N','U'] 
+    indC = [componentsT.index(comp) for comp in components]
+    print('You are using these components: ',components)
+
+    if gratsid_flag==True:
+        assert 'options_gratsid' in locals(), "Variable 'options_gratsid' does not exist."
+
+    if suffix=='.txt':
+        list_stations=id_names_txt(cd)
+    elif suffix=='.resi.cgps_raw.unflt.clean.iqrx3':
+        list_stations=id_names_raw(cd)
+    else:
+        print('check your suffix')
+
+    sss=0
+    with open(coord_file, "w") as fileCoord:
+        for station in list_stations[:]: 
+            
+            ##### Reference station #####
+            print(station,sss)
+    
+            ########### import data ###########
+            if suffix=='.txt':
+                STAT = Station(station+'.txt', t[0],t[-1],components,cd)
+                dfsO=STAT.importdata()
+            if suffix=='.resi.cgps_raw.unflt.clean.iqrx3':
+                file=cd+station+suffix
+                longitude,latitude,dfsO =import_resi(file) 
+    
+            if len(dfsO)>0:
+               
+                data=dfsO.values
+                data_comp=data[:,3+np.array(indC)]
+
+                if data_comp.shape[0]>input_length:
+                    
+                    if coordinates_flag==True:
+                        lineN = station+','+str(latitude)+','+str(longitude)+'\n' 
+                        fileCoord.write(lineN)
+                    
+                    datetime_obj = [datetime.datetime.combine(dfsO['YYMMDD'].iloc[i], datetime.time()) for i in range(len(dfsO['YYMMDD']))] 
+                    ## vetorized time
+                    t_gO = gen_jjj(data[:,0].astype(int),data[:,1].astype(int),data[:,2].astype(int))
+                    t_g=t_gO-t_gO[0]
+                    t_g=t_g.astype('int')
+
+                    if Use_steps_flag==True:
+                        ########### import Step file ###########
+                        file_step=cd_step+station+'.para'
+                        if os.path.exists(file_step):
+                            List_steps=load_step(file_step)
+                            ind_stepT=[[] for _ in range(len(List_steps))]
+                            for iii in range(len(List_steps)):
+                                for j in range(len(List_steps[iii])):
+                                    data_step=datetime.date.toordinal(List_steps[iii][j])-t_gO[0]
+                                    if data_step>position:
+                                        ind_stepT[iii].append(data_step)
+                        if any(sublist for sublist in ind_stepT if ind_stepT):        
+                            print('There are some steps')
+                            #ind_stepT=[[item for sublist in sublist_list for item in sublist] for sublist_list in ind_stepT]
+                    else:
+                        ind_stepT=[[] for _ in range(len(components))]
+                    ###################### Time - without gaps ######################
+                    input_time=np.arange(dfsO['YYMMDD'].iloc[0], dfsO['YYMMDD'].iloc[-1], timedelta(days=1)).astype(datetime.datetime)
+                    time_t = np.linspace(t_g[0], t_g[-1], int(t_g[-1]-t_g[0]+1)).astype('int')
+
+                    ###################### Remove Outliers ######################
+                    if Remove_outliers_Flag==True:
+                        Noutlier_indicesT=[]
+                        for c in range(len(components)):
+                            filtered_data, outlier_indices, non_outlier_indices=hampel_filter(data_comp[:,c],31, 3,threshold = 3)
+                            Noutlier_indicesT.append(non_outlier_indices)
+
+                        Noutlier_indicesT = [item for sublist in Noutlier_indicesT for item in sublist]
+                        if len(components)==2:
+                            Noutlier_indicesT=list(set([x for x in Noutlier_indicesT if Noutlier_indicesT.count(x) > 1]))
+                        elif len(components)==3:
+                            Noutlier_indicesT=list(set([x for x in Noutlier_indicesT if Noutlier_indicesT.count(x) > 2]))
+
+                        print('Outliers removed are the: '+str(100-(len(t_g[Noutlier_indicesT])*100)/len(t_g))+' %')
+
+                        t_g=t_g[Noutlier_indicesT]
+                        t_g=t_g.astype('int')
+                        datetime_obj=list(np.array(datetime_obj)[Noutlier_indicesT])
+                        data_comp=data_comp[Noutlier_indicesT,:]
+
+                    ###################### data to denoise (put nan where there is a gap) ######################
+                    dataN=np.zeros([len(time_t),len(components)])
+                    dataN.fill(np.nan)
+                    indexes=[i for i in time_t if i in t_g]
+                    dataN[indexes,:]=data_comp
+
+                    ############ DL ############
+                    new_t,d,PredictionsT=apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_base,verbose=False,step_array=ind_stepT)
+
+                    if new_t is None:
+                        print("The station is ignored")
+                    else:
+                        assert len(new_t)==d.shape[1]
+                        denoised=np.array(d.T-PredictionsT.T)
+
+                        time, common_indexes_array1, common_indexes_array2= find_common_elements_with_indexes(datetime_obj, new_t)
+                        denoised=denoised[common_indexes_array2,:]
+
+                        y=data_comp.astype('float64') 
+
+                        #################### Gratsid Fit ####################
+                        if gratsid_flag==True:
+                            if use_known_steps==1:
+                                signals=STAT.apply_gratsid(t_g,y,options,use_known_steps,df_stepsAC,df_stepsEC) 
+                            else:
+                                signals=STAT.apply_gratsid(t_g,y,options,use_known_steps) 
+
+                        filterd=[]
+                        for i in range(len(components)):
+                            raw=y[:,i]
+                            raw=raw[common_indexes_array1] 
+                            if gratsid_flag==True:
+                                #trajectory model
+                                trajectory=(signals[0][:,i]+signals[1][:,i]+signals[2][:,i]+signals[3][:,i]+signals[4][:,i])
+                                # Compute the trend as the median of the derivative of the trajectory
+                                #trend=np.arange(len(trajectory))*np.median(derivative(t_old,trajectory,step_derivative))+(trajectory[0])[common_indexes_array1]
+                                trend=(np.arange(len(trajectory))*np.median(np.diff(trajectory))+(trajectory[0]))[common_indexes_array1]
+                                trajectory=trajectory[common_indexes_array1]
+                                # Exponential moving average
+                                if exp_flag==True:
+                                    shift=input_length-position #-1 +1 #beacuse the position is indicated considering that python is 0 based 
+                                    EMV=exp_weighted_moving_av_with_shift(y[:,i],alpha,input_length,shift)[common_indexes_array1]
+
+                                    assert len(EMV)==len(trend)==len(trajectory)==len(raw)
+                                    # Remove the trend to every products
+                                    filterd.append(np.vstack([raw-trend,denoised[:,i]-trend,EMV-trend,trajectory-trend]))
+                            else:
+                                filterd.append(np.vstack([raw,denoised[:,i]]))
+
+                        input_time=input_time[common_indexes_array1]
+                        filterd=np.array(filterd)
+
+                        if filterd.shape[0]==3:
+                            filterd=np.vstack([filterd[0,:,:],filterd[1,:,:],filterd[2,:,:]])
+                        elif filterd.shape[0]==2:
+                            filterd=np.vstack([filterd[0,:,:],filterd[1,:,:]])
+                        else:
+                            filterd=np.squeeze(filterd)
+
+                        y=np.transpose(filterd) 
+                        namesT=[]
+                        if gratsid_flag==True and exp_flag==True:  
+                            for c in components:
+                                namesT.append([c,'DL_'+c,'EMV_'+c,'GrAtSiD_'+c])
+                        else:
+                            for c in components:
+                                namesT.append([c,'DL_'+c])
+                        names = [item for sublist in namesT for item in sublist]
+                        df_Filterd=pd.DataFrame(y[:],columns=names)
+
+                        ############ SAVE ############
+                        df_Filterd['YYMMDD']=pd.Series(dtype='float64')
+                        for i in range(len(df_Filterd)):
+                            df_Filterd.loc[i, 'YYMMDD'] = pd.Timestamp(time[i]).to_pydatetime()
+
+                        df_Filterd['YYMMDD']= pd.to_datetime(df_Filterd['YYMMDD']).astype('datetime64[ns]')
+                        my_column = df_Filterd.pop('YYMMDD')
+                        df_Filterd.insert(0, my_column.name, my_column) 
+
+                        # Check for duplicates
+                        datetime_index = pd.DatetimeIndex(df_Filterd.YYMMDD)
+                        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+                        # Check if all dates are increasing
+                        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+
+                        df_Filterd.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
+
+                        sss+=1
+
+
+    if coordinates_flag==False:
+        os.remove(coord_file)                   
+                               
+    return print('Finished')   
