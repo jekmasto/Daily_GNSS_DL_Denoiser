@@ -769,7 +769,7 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
         assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
  
         y=dfs.values[:,1:]
-        y_vel=np.zeros([y.shape[0]-1,y.shape[1]])
+        y_vel=np.zeros([y.shape[0]-step,y.shape[1]])
     
         ###### Derivative ######
         # time vector
