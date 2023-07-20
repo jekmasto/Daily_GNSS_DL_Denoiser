@@ -226,7 +226,7 @@ def has_two_numbers_before_hyphen(input_str):
     pattern = r'\d\d-'  # Regular expression pattern for two numbers followed by '-'
     return bool(re.search(pattern, input_str))
 
-ef import_resi(file):
+def import_resi(file):
 
     """
     Import a .raw file from INGV (Serpelloni data)
