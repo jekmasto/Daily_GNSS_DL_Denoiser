@@ -280,7 +280,6 @@ def import_resi(file):
     datetime_index = pd.DatetimeIndex(dfN.YYMMDD)
     # Check for duplicates
     assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
-
     # Check if all dates are increasing
     assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
     
@@ -388,6 +387,13 @@ class Station:
             dfs['YYMMDD'].astype('datetime64[ns]')
 
             dfs=dfs[dfs.YYMMDD>self.starting_date.date()]
+            
+            datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+            # Check for duplicates
+            assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+            # Check if all dates are increasing
+            assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+
         return dfs
     
     def apply_gratsid(self,vectorT,data,options,use_known_steps,df_stepsAC=None,df_stepsEC=None):
