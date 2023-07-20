@@ -25,9 +25,10 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
             directory_path = os.path.join(dirpath, dirname)
             print("Directory found:", directory_path)
             break
-
-if not os.path.exists(directory_path)::
-    raise FileNotFoundError(f"Directory '{directory_name}' not found. Be sure you have installed Gratsid")
+            
+if not directory_path:
+    if not os.path.exists(directory_path):
+        raise FileNotFoundError(f"Directory '{directory_name}' not found. Be sure you have installed Gratsid")
 
 sys.path.append(directory_path)
 from gratsid_tf_gpu_functions_SHARED import *
