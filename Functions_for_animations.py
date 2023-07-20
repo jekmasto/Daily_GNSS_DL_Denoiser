@@ -188,11 +188,12 @@ def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_
             predictions_stepD=tf.squeeze(predictions_stepD)
             
             ###### put optional known steps ######
-            if step_array[c]:
-                ST=step_arrayT[:,:,c][~np.isnan(dato_interpT[:,:,c]).any(axis=1)]  
-                real_st=np.argwhere(ST==1)
-                predictions_stepD=np.array(predictions_stepD)
-                predictions_stepD[real_st[:,0],real_st[:,1]]=1
+            if step_flag==True: 
+                if np.any(step_arrayT[:, :, c] == 1): #if step_array[c]
+                    ST=step_arrayT[:,:,c][~np.isnan(dato_interpT[:,:,c]).any(axis=1)]  
+                    real_st=np.argwhere(ST==1)
+                    predictions_stepD=np.array(predictions_stepD)
+                    predictions_stepD[real_st[:,0],real_st[:,1]]=1
                     
             New_X=tf.transpose(tf.stack([predictions_stepD,X]),[1,2,0])
     
