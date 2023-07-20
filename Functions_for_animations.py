@@ -754,7 +754,7 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     list_stations=id_names_txt(soln_folder_path)
     for station in list_stations: #random_stations
         dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
-                 delim_whitespace=True,header=0,on_bad_lines='skip')
+                 delim_whitespace=True,header=0,on_bad_lines='skip',skiprows=check_rows(file,new_cols))
         dfs=dfs.dropna()
 
         new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
