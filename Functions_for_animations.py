@@ -696,27 +696,35 @@ def avaliable_stations(soln_folder_path,list_stations,t):
         
     return Stations,dft
 
-def compute_derivative(soln_folder_path,list_stations,save_folder):
+def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     """
     Save as new csv the derivative of time-series  
 
     Parameters
     ----------
        soln_folder_path: folder of input csv 
-       list_stations: list of all stations
+       step: step (in days) used to compute the derivative
+       new_cols: list of columns of the input txt files (e.g. ['YYMMDD','E','DL_E','EMV_E','GrAtSiD_E','N','DL_N','EMV_N','GrAtSiD_N'])
        soln_folder_path: folder where to save the output csv 
     """
 
+    list_stations=id_names_txt(soln_folder_path)
     for station in list_stations: #random_stations
-        dfs = pd.read_csv(soln_folder_path+str(station)+'.txt', 
+        dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
                  delim_whitespace=True,header=0,on_bad_lines='skip')
         dfs=dfs.dropna()
 
-        new_cols=['YYMMDD','E','f_E','N','f_N']
         new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
         dfs.rename(new_names_map, axis=1, inplace=True)
         #transform to the same datetime format!!
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
+
+        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+        # Check for duplicates
+        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+        # Check if all dates are increasing
+        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+ 
         y=dfs.values[:,1:]
         y_vel=np.zeros([y.shape[0]-1,y.shape[1]])
     
@@ -727,18 +735,21 @@ def compute_derivative(soln_folder_path,list_stations,save_folder):
         days_ago_as_int=[abs(da.days) for da in days_ago] 
     
         for k in range(y.shape[1]):
-            y_vel[:,k]=derivative(days_ago_as_int,y[:,k])
-    
+            y_vel[:,k]=derivative(days_ago_as_int,y[:,k],step)
+
+        print(y_vel.shape)
+        print(y.shape)
         #y=np.diff(y,axis=0)
-        dfvel = pd.DataFrame(y_vel[:] , columns=['E','f_E','N','f_N'])
+        dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
         dfvel['YYMMDD']  = pd.Series(dtype='float64') 
-        dfvel['YYMMDD']=dfs['YYMMDD'][:]
+        dfvel['YYMMDD']=dfs['YYMMDD'][1:]
         dfvel['YYMMDD']= pd.to_datetime(dfvel['YYMMDD']).astype('datetime64[ns]')
         
         #date columns as first
         my_column = dfvel.pop('YYMMDD')
         dfvel.insert(0, my_column.name, my_column) 
         dfvel.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
+    
     return print('finished')
 
 def conversion_Nevada(cd,cd_saving):
