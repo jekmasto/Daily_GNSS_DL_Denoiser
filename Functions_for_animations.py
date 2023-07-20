@@ -28,6 +28,7 @@ sys.path.append(directory_path)
 from gratsid_tf_gpu_functions_SHARED import *
 print(f"TensorFlow has access to the following devices:\n{tf.config.list_physical_devices()}")
 
+# Vectorization of time where x=years,y=months,z=days
 gen_jjj = np.vectorize(lambda x,y,z: datetime.date.toordinal(datetime.date(x,y,z)))
 
 def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_baseO,verbose=None,step_array=None): 
@@ -66,6 +67,7 @@ def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_
     else:
         step_flag=True
         step_arrayT=np.zeros([len(time_t),input_length,len(components)])
+        # fill with nans
         step_arrayT.fill(np.nan)
         
     ## time indexes to keep ##
@@ -125,7 +127,7 @@ def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_
             else:
                 cd_base=cd_baseO+'_E_N_'+str(input_length)
             
-            ##### Load training Mean and Std #####
+            ##### Load Mean and Std of the training set #####
             mean=float(np.load(cd_base+'/Mean_std.npz')['mean'])
             std=float(np.load(cd_base+'/Mean_std.npz')['std'])
 
@@ -136,7 +138,7 @@ def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_
             ##### Rescale #####
             X=(X-mean)/std
         
-            ##### Load training DL MODELS #####
+            ##### Load trained DL MODELS #####
             modelStep=cd_base+'/models/Step_model_skip'
             modelN=cd_base+'/models/Gratsid_modelN_noskip_'+str(position) 
             try:
