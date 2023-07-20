@@ -738,7 +738,7 @@ def check_rows(file,new_cols):
             if len(str(line).split(delimiter)) == len(new_cols) and  '' not in str(line).split(delimiter):
                 break
     return np.arange(i)
-    
+       
 def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     """
     Save as new csv the derivative of time-series  
@@ -779,13 +779,13 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     
         for k in range(y.shape[1]):
             y_vel[:,k]=derivative(days_ago_as_int,y[:,k],step)
-
+        
         #y=np.diff(y,axis=0)
         dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
         dfvel['YYMMDD']  = pd.Series(dtype='float64') 
-        dfvel['YYMMDD']=dfs['YYMMDD'][1:]
+        assert len(dfvel['YYMMDD'])==len(dfs['YYMMDD'][step:])
+        dfvel['YYMMDD']=list(dfs['YYMMDD'][step:])
         dfvel['YYMMDD']= pd.to_datetime(dfvel['YYMMDD']).astype('datetime64[ns]')
-        
         #date columns as first
         my_column = dfvel.pop('YYMMDD')
         dfvel.insert(0, my_column.name, my_column) 
