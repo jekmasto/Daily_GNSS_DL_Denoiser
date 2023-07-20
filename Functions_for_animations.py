@@ -726,7 +726,19 @@ def avaliable_stations(soln_folder_path,list_stations,t):
             ten_step+=10
         
     return Stations,dft
-
+    
+def check_rows(file,new_cols):
+    """
+    Function to skip the first lines if they do not have the proper number of columns
+    """
+    delimiter = ' '  # Delimiter used in the file
+        
+    with open(file) as f:
+        for i, line in enumerate(f):
+            if len(str(line).split(delimiter)) == len(new_cols) and  '' not in str(line).split(delimiter):
+                break
+    return np.arange(i)
+    
 def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     """
     Save as new csv the derivative of time-series  
