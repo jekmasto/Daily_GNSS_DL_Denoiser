@@ -226,7 +226,7 @@ def has_two_numbers_before_hyphen(input_str):
     pattern = r'\d\d-'  # Regular expression pattern for two numbers followed by '-'
     return bool(re.search(pattern, input_str))
 
-def import_resi(file):
+ef import_resi(file):
 
     """
     Import a .raw file from INGV (Serpelloni data)
@@ -261,24 +261,29 @@ def import_resi(file):
             lines.append(line)
 
             j+=1
+            
             if line and j>2:
                 values = line.split()
-                decimal_t.append(float(values[0]))
-                date_d=decimal_to_datetime(float(values[0])).date()
-                date_dT.append(date_d)
-                years.append(date_d.year)
-                months.append(date_d.month)
-                days.append(date_d.day)
-                
-                if has_two_numbers_before_hyphen(str(values[1])): 
-                    val=str(values[1])
-                    E.append(float(val.split('-')[0]))
-                    N.append(float(val.split('-')[1]))
-                    U.append(float(values[5]))
+                if  '*' in values[0]:
+                    print('Out of scale - The time-series can not be totally imported')
+                    break
                 else:
-                    E.append(float(values[1]))
-                    N.append(float(values[2]))
-                    U.append(float(values[6]))
+                    decimal_t.append(float(values[0]))
+                    date_d=decimal_to_datetime(float(values[0])).date()
+                    date_dT.append(date_d)
+                    years.append(date_d.year)
+                    months.append(date_d.month)
+                    days.append(date_d.day)
+                    
+                    if has_two_numbers_before_hyphen(str(values[1])): 
+                        val=str(values[1])
+                        E.append(float(val.split('-')[0]))
+                        N.append(float(val.split('-')[1]))
+                        U.append(float(values[5]))
+                    else:
+                        E.append(float(values[1]))
+                        N.append(float(values[2]))
+                        U.append(float(values[6]))
                     
     if has_two_numbers_before_hyphen(str(values[1])):
         station = values[9]
