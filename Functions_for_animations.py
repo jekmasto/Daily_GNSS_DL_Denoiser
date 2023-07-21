@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
-import os, glob, sys
+import os, glob, sys,re
 import datetime 
 from datetime import timedelta
 
@@ -217,7 +217,6 @@ def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_
         return new_t,d,PredictionsT
 
 def has_two_numbers_before_hyphen(input_str):
-    import re
 
     """
     To check if the character '-' is inside the input string and is preceded by two numbers (like in '178-90')
@@ -270,22 +269,37 @@ def import_resi(file):
                     flag_star=True
                     break
                 else:
+                    if len(values[0])==31:
+                        valuesN=[ [] for _ in range(13)]
+                        input_string = values[0] #135735.91576348.51
+                        gg=input_string.split('.')
+                        # Split the string after every 8 numbers (including decimal points) using regular expression
+                        split_string = re.findall(r'\d{8}', gg[1])
+
+                        valuesN[0]=gg[0]+'.'+split_string[0]
+                        valuesN[1]=gg[1].split(split_string[0])[1]+'.'+gg[2][:2]
+                        valuesN[2]=gg[2][2:]+'.'+gg[3]
+
+                        for iii in range(len(values[1:])):
+                            valuesN[iii+3]=values[1+iii] 
+                        values=valuesN
+                        
                     decimal_t.append(float(values[0]))
                     date_d=decimal_to_datetime(float(values[0])).date()
                     date_dT.append(date_d)
                     years.append(date_d.year)
                     months.append(date_d.month)
                     days.append(date_d.day)
-                    
-                    if has_two_numbers_before_hyphen(str(values[1])): 
-                        val=str(values[1])
-                        E.append(float(val.split('-')[0]))
-                        N.append(float(val.split('-')[1]))
-                        U.append(float(values[5]))
-                    else:
-                        E.append(float(values[1]))
-                        N.append(float(values[2]))
-                        U.append(float(values[6]))
+                
+                if has_two_numbers_before_hyphen(str(values[1])): 
+                    val=str(values[1])
+                    E.append(float(val.split('-')[0]))
+                    N.append(float(val.split('-')[1]))
+                    U.append(float(values[5]))
+                else:
+                    E.append(float(values[1]))
+                    N.append(float(values[2]))
+                    U.append(float(values[6]))
 
     if flag_star==False:                
         if has_two_numbers_before_hyphen(str(values[1])) :
