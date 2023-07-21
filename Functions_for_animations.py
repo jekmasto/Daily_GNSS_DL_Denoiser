@@ -243,6 +243,7 @@ def import_resi(file):
        
     """
     
+    flag_star=False
     years=[]
     months=[]
     days=[]
@@ -266,6 +267,7 @@ def import_resi(file):
                 values = line.split()
                 if  '*' in values[0]:
                     print('Out of scale - The time-series can not be totally imported')
+                    flag_star=True
                     break
                 else:
                     decimal_t.append(float(values[0]))
@@ -284,38 +286,43 @@ def import_resi(file):
                         E.append(float(values[1]))
                         N.append(float(values[2]))
                         U.append(float(values[6]))
-                    
-    if has_two_numbers_before_hyphen(str(values[1])):
-        station = values[9]
-        longitudes=float(values[10])
-        latitudes=float(values[11])
-        
-    else:
-        station = values[10]
-        longitudes=float(values[11])
-        latitudes=float(values[12])
-    
-    E=np.array(E)*0.001
-    N=np.array(N)*0.001
-    U=np.array(U)*0.001
-    y=np.vstack([years,months,days,E,N,U,decimal_t])
-                    
-    y=np.transpose(y) 
-    dfN=pd.DataFrame(y[:],columns=['years','months','days','E','N','U','decimal_date'])
-    
-    dfN['YYMMDD']=pd.Series(dtype='float64')
-    for i in range(len(dfN)):
-        dfN.loc[i, 'YYMMDD'] = pd.Timestamp(date_dT[i]).to_pydatetime()
-    dfN['YYMMDD']= pd.to_datetime(dfN['YYMMDD']).astype('datetime64[ns]')   
-    
-    datetime_index = pd.DatetimeIndex(dfN.YYMMDD)
-    # Check for duplicates
-    assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
-    # Check if all dates are increasing
-    assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
-    
-    return longitudes,latitudes,dfN
 
+    if flag_star==False:                
+        if has_two_numbers_before_hyphen(str(values[1])) :
+            station = values[9]
+            longitudes=float(values[10])
+            latitudes=float(values[11])
+        
+        else:
+            station = values[10]
+            longitudes=float(values[11])
+            latitudes=float(values[12])
+    
+        E=np.array(E)*0.001
+        N=np.array(N)*0.001
+        U=np.array(U)*0.001
+        y=np.vstack([years,months,days,E,N,U,decimal_t])
+                        
+        y=np.transpose(y) 
+        dfN=pd.DataFrame(y[:],columns=['years','months','days','E','N','U','decimal_date'])
+        
+        dfN['YYMMDD']=pd.Series(dtype='float64')
+        for i in range(len(dfN)):
+            dfN.loc[i, 'YYMMDD'] = pd.Timestamp(date_dT[i]).to_pydatetime()
+        dfN['YYMMDD']= pd.to_datetime(dfN['YYMMDD']).astype('datetime64[ns]')   
+        
+        datetime_index = pd.DatetimeIndex(dfN.YYMMDD)
+        # Check for duplicates
+        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+        # Check if all dates are increasing
+        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+        
+        return longitudes,latitudes,dfN
+
+    else:
+        return None,None,None
+    
+    
 def load_step(file):
     """
     Load a step file
@@ -731,19 +738,7 @@ def avaliable_stations(soln_folder_path,list_stations,t):
             ten_step+=10
         
     return Stations,dft
-    
-def check_rows(file,new_cols):
-    """
-    Function to skip the first lines if they do not have the proper number of columns
-    """
-    delimiter = ' '  # Delimiter used in the file
-        
-    with open(file) as f:
-        for i, line in enumerate(f):
-            if len(str(line).split(delimiter)) == len(new_cols) and  '' not in str(line).split(delimiter):
-                break
-    return np.arange(i)
-       
+
 def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     """
     Save as new csv the derivative of time-series  
@@ -759,7 +754,7 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     list_stations=id_names_txt(soln_folder_path)
     for station in list_stations: #random_stations
         dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
-                 delim_whitespace=True,header=0,on_bad_lines='skip',skiprows=check_rows(soln_folder_path+'/'+str(station)+'.txt',new_cols))
+                 delim_whitespace=True,header=0,on_bad_lines='skip')
         dfs=dfs.dropna()
 
         new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
@@ -774,7 +769,7 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
         assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
  
         y=dfs.values[:,1:]
-        y_vel=np.zeros([y.shape[0]-step,y.shape[1]])
+        y_vel=np.zeros([y.shape[0]-1,y.shape[1]])
     
         ###### Derivative ######
         # time vector
@@ -784,13 +779,15 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     
         for k in range(y.shape[1]):
             y_vel[:,k]=derivative(days_ago_as_int,y[:,k],step)
-        
+
+        print(y_vel.shape)
+        print(y.shape)
         #y=np.diff(y,axis=0)
         dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
         dfvel['YYMMDD']  = pd.Series(dtype='float64') 
-        assert len(dfvel['YYMMDD'])==len(dfs['YYMMDD'][step:])
-        dfvel['YYMMDD']=list(dfs['YYMMDD'][step:])
+        dfvel['YYMMDD']=dfs['YYMMDD'][1:]
         dfvel['YYMMDD']= pd.to_datetime(dfvel['YYMMDD']).astype('datetime64[ns]')
+        
         #date columns as first
         my_column = dfvel.pop('YYMMDD')
         dfvel.insert(0, my_column.name, my_column) 
@@ -997,50 +994,53 @@ def remove_trend(save_folder,new_cols,save_folder_vel):
         ## Reset the index if needed
         dfs = dfs.reset_index(drop=True)
         dfs=dfs.dropna()
-    
-        new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
-        dfs.rename(new_names_map, axis=1, inplace=True)
-        #transform to the same datetime format!!
-        dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
-        datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
         
-        # Check for duplicates
-        print(station)
-        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
-        # Check if all dates are increasing
-        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
-
-        y=dfs.values[:,1:]
-        y_vel=np.zeros([y.shape[0],y.shape[1]])
-
-        # time vector
-        df_dates = dfs['YYMMDD'].apply(lambda x: x.date())
-        days_ago=df_dates[0]-df_dates
-        days_ago_as_int=np.array([abs(da.days) for da in days_ago]).astype('int')
-       
-        for k in range(y.shape[1]):
-            yy=np.array(y[:,k]).astype('float')
-            trend=linregress(days_ago_as_int,yy)
-            trend_vector=days_ago_as_int*trend.slope+trend.intercept
-            y_vel[:,k]=yy-trend_vector
-
-        dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
-        dfvel['YYMMDD']  = pd.Series(dtype='float64') 
-        dfvel['YYMMDD']=list(dfs['YYMMDD'])[:]
-        dfvel['YYMMDD']= pd.to_datetime(dfvel['YYMMDD']).astype('datetime64[ns]')
+        if len(dfs)>step:
+            new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
+            dfs.rename(new_names_map, axis=1, inplace=True)
+            #transform to the same datetime format!!
+            dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
+            datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+            
+            # Check for duplicates
+            print(station)
+            assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+            # Check if all dates are increasing
+            assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+   
+            y=dfs.values[:,1:]
+            y_vel=np.zeros([y.shape[0],y.shape[1]])
     
-        #date columns as first
-        my_column = dfvel.pop('YYMMDD')
-        dfvel.insert(0, my_column.name, my_column) 
-        dfvel.to_csv(save_folder_vel+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
+            ###### Derivative ######
+            # time vector
+            df_dates = dfs['YYMMDD'].apply(lambda x: x.date())
+            days_ago=df_dates[0]-df_dates
+            days_ago_as_int=np.array([abs(da.days) for da in days_ago]).astype('int')
+           
+            for k in range(y.shape[1]):
+                yy=np.array(y[:,k]).astype('float')
+                trend=linregress(days_ago_as_int,yy)
+                trend_vector=days_ago_as_int*trend.slope+trend.intercept
+                y_vel[:,k]=yy-trend_vector
+    
+            #y=np.diff(y,axis=0)
+            dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
+            dfvel['YYMMDD']  = pd.Series(dtype='float64') 
+            dfvel['YYMMDD']=list(dfs['YYMMDD'])[:]
+            dfvel['YYMMDD']= pd.to_datetime(dfvel['YYMMDD']).astype('datetime64[ns]')
         
-        datetime_index = pd.DatetimeIndex(dfvel.YYMMDD)
-        # Check for duplicates
-        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+            #date columns as first
+            my_column = dfvel.pop('YYMMDD')
+            dfvel.insert(0, my_column.name, my_column) 
+            dfvel.to_csv(save_folder_vel+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
+            
+            datetime_index = pd.DatetimeIndex(dfvel.YYMMDD)
+            # Check for duplicates
+            assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
 
-        # Check if all dates are increasing
-        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
-  
+            # Check if all dates are increasing
+            assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+      
     return print('Finished')
 
 def create_step_file(cd,file_coord,file_step,earthquakes_file,save_Flag=False):
@@ -1233,8 +1233,8 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
             if suffix=='.resi.cgps_raw.unflt.clean.iqrx3':
                 file=cd+station+suffix
                 longitude,latitude,dfsO =import_resi(file) 
-    
-            if len(dfsO)>0:
+                
+            if len(dfsO)>0 or dfsO==None:
                
                 data=dfsO.values
                 data_comp=data[:,3+np.array(indC)]
@@ -1379,6 +1379,8 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
                         df_Filterd.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
 
                         sss+=1
+
+            print(station,' can not be used - problems in the input files')
 
     if coordinates_flag==False:
         os.remove(coord_file)                   
