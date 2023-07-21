@@ -265,8 +265,8 @@ def import_resi(file):
             
             if line and j>2:
                 values = line.split()
-                if  '*' in values[0]:
-                    print('Out of scale - The time-series can not be totally imported')
+                if any('*' in value for value in values[:3]):
+                    print('------------ Out of scale - The time-series can not be totally imported ------------')
                     flag_star=True
                     break
                 else:
@@ -1263,11 +1263,15 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
                                     data_step=datetime.date.toordinal(List_steps[iii][j])-t_gO[0]
                                     if data_step>position:
                                         ind_stepT[iii].append(data_step)
-                        if any(sublist for sublist in ind_stepT if ind_stepT):        
-                            print('There are some steps')
-                            #ind_stepT=[[item for sublist in sublist_list for item in sublist] for sublist_list in ind_stepT]
+                        
+                            if any(sublist for sublist in ind_stepT if ind_stepT):        
+                                print('There are some steps')
+                                #ind_stepT=[[item for sublist in sublist_list for item in sublist] for sublist_list in ind_stepT]
+                        else:
+                            ind_stepT=[[] for _ in range(len(components))]   
                     else:
                         ind_stepT=[[] for _ in range(len(components))]
+                        
                     ###################### Time - without gaps ######################
                     input_time=np.arange(dfsO['YYMMDD'].iloc[0], dfsO['YYMMDD'].iloc[-1], timedelta(days=1)).astype(datetime.datetime)
                     time_t = np.linspace(t_g[0], t_g[-1], int(t_g[-1]-t_g[0]+1)).astype('int')
@@ -1381,7 +1385,7 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
 
                         sss+=1
             else:
-                print(station,' can not be used - problems in the input files')
+                print('------------',station,' can not be used - problems in the input files ------------')
 
     if coordinates_flag==False:
         os.remove(coord_file)                   
