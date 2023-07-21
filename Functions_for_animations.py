@@ -320,7 +320,8 @@ def import_resi(file):
         return longitudes,latitudes,dfN
 
     else:
-        return None,None,None
+        dfN=pd.DataFrame()
+        return None,None,dfN
     
     
 def load_step(file):
@@ -1234,8 +1235,8 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
                 file=cd+station+suffix
                 longitude,latitude,dfsO =import_resi(file) 
                 
-            if len(dfsO)>0 or dfsO==None:
-               
+            if not dfsO.empty:
+            
                 data=dfsO.values
                 data_comp=data[:,3+np.array(indC)]
 
@@ -1379,12 +1380,11 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
                         df_Filterd.to_csv(save_folder+'/'+str(station)+'.txt', header=None, index=None, sep=' ', mode='a')
 
                         sss+=1
-
-            print(station,' can not be used - problems in the input files')
+            else:
+                print(station,' can not be used - problems in the input files')
 
     if coordinates_flag==False:
         os.remove(coord_file)                   
                                
     return print('Finished')   
-
 
