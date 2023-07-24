@@ -284,6 +284,26 @@ def import_resi(file):
                             valuesN[iii+3]=values[1+iii] 
                         values=valuesN
                         
+                    if len(values[0])==22:
+                        valuesN=[ [] for _ in range(13)]
+                        input_string = values[0] #135735.91576348.51
+                        gg=input_string.split('.')
+                        split_string = re.findall(r'\d{8}', gg[1])
+                        valuesN[0]=gg[0]+'.'+split_string[0]
+                        valuesN[1]=gg[1].split(split_string[0])[1]+'.'+gg[2]
+                        valuesN[2]=values[1]
+                        valuesN[3]=values[2] 
+                        valuesN[4]=values[3] 
+                        
+                        if len(values[4])==15:
+                            hh=values[4].split('-')
+                            valuesN[5]=hh[1]
+                            valuesN[6]='-'+hh[1]
+                            
+                        for iii in range(len(values[5:])):
+                            valuesN[iii+7]=values[5+iii] 
+                        values=valuesN
+                        
                     decimal_t.append(float(values[0]))
                     date_d=decimal_to_datetime(float(values[0])).date()
                     date_dT.append(date_d)
