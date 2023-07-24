@@ -225,6 +225,7 @@ def has_two_numbers_before_hyphen(input_str):
     pattern = r'\d\d-'  # Regular expression pattern for two numbers followed by '-'
     return bool(re.search(pattern, input_str))
 
+
 def import_resi(file):
 
     """
@@ -299,6 +300,9 @@ def import_resi(file):
                             hh=values[4].split('-')
                             valuesN[5]=hh[1]
                             valuesN[6]='-'+hh[1]
+                        else:
+                          valuesN[5]=values[4]
+                          valuesN[6]=values[5]
                             
                         for iii in range(len(values[5:])):
                             valuesN[iii+7]=values[5+iii] 
@@ -356,7 +360,6 @@ def import_resi(file):
     else:
         dfN=pd.DataFrame()
         return None,None,dfN
-    
     
 def load_step(file):
     """
