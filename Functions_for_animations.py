@@ -300,12 +300,16 @@ def import_resi(file):
                             hh=values[4].split('-')
                             valuesN[5]=hh[1]
                             valuesN[6]='-'+hh[1]
-                        else:
-                          valuesN[5]=values[4]
-                          valuesN[6]=values[5]
                             
-                        for iii in range(len(values[5:])):
-                            valuesN[iii+7]=values[5+iii] 
+                            for iii in range(len(values[5:])):
+                                valuesN[iii+7]=values[5+iii] 
+                        else:
+                            valuesN[5]=values[4]
+                            valuesN[6]=values[5]
+                            
+                            for iii in range(len(values[6:])):
+                                valuesN[iii+7]=values[6+iii] 
+                        
                         values=valuesN
                         
                     decimal_t.append(float(values[0]))
