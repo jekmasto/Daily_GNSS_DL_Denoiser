@@ -31,6 +31,12 @@ print(f"TensorFlow has access to the following devices:\n{tf.config.list_physica
 # Vectorization of time where x=years,y=months,z=days
 gen_jjj = np.vectorize(lambda x,y,z: datetime.date.toordinal(datetime.date(x,y,z)))
 
+def indices(lst, item): 
+    """
+    Return duplicates 
+    """
+    return [i for i, x in enumerate(lst) if x == item]
+
 def apply_DL_filter(time_t,input_time,components,dataN,input_length,position,cd_baseO,verbose=None,step_array=None): 
     
     """
