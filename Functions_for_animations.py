@@ -654,10 +654,6 @@ def influence_radius(Mw): #Nevada formula (http://geodesy.unr.edu/explanationofp
     d = 1.15 #empirical coefficient;
     return 10**(0.43*Mw-0.7)/d
 
-def indices(lst, item): 
-    #return duplicates within a list
-    return [i for i, x in enumerate(lst) if x == item]  
-
 def find_common_elements_with_indexes(array1, array2):
 
     """
