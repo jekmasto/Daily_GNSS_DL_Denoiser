@@ -231,7 +231,6 @@ def has_two_numbers_before_hyphen(input_str):
     pattern = r'\d\d-'  # Regular expression pattern for two numbers followed by '-'
     return bool(re.search(pattern, input_str))
 
-
 def import_resi(file):
 
     """
@@ -370,6 +369,7 @@ def import_resi(file):
     else:
         dfN=pd.DataFrame()
         return None,None,dfN
+    
     
 def load_step(file):
     """
@@ -697,12 +697,25 @@ def avaliable_stations_vel(soln_folder_path,list_stations,t,new_cols):
     Stations=[[] for _ in range(len(listT))] #list of length(t) built by empy lists
     k=0
     ten_step=10
-    
+    n=len(new_cols)
+
     for station in list_stations: #random_stations
+        line_to_skip=[]
+        try:
+            with open(soln_folder_path+'/'+str(station)+'.txt', 'r') as file:
+                for line_number, line in enumerate(file, 1):
+                    # Replace 'your_separator' with the separator used in your file
+                    columns = line.strip().split(' ')
+                    has_empty_element = any(not element for element in columns)
+                    if len(columns) != n or has_empty_element:
+                        line_to_skip.append(line_number-1)
+        except FileNotFoundError:
+            print(soln_folder_path+'/'+str(station)+'.txt',' - not found')
+
         dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
-                 delim_whitespace=True,header=0,on_bad_lines='skip')
-        dfs=dfs.dropna()
-        new_cols=new_cols
+                 delim_whitespace=True,header=None,skiprows=line_to_skip)
+        ## Reset the index if needed
+        dfs = dfs.reset_index(drop=True)
         new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
         dfs.rename(new_names_map, axis=1, inplace=True)
         #transform to the same datetime format!!
@@ -792,17 +805,32 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
        soln_folder_path: folder of input csv 
        step: step (in days) used to compute the derivative
        new_cols: list of columns of the input txt files (e.g. ['YYMMDD','E','DL_E','EMV_E','GrAtSiD_E','N','DL_N','EMV_N','GrAtSiD_N'])
-       soln_folder_path: folder where to save the output csv 
+       save_folder: folder where to save the output csv 
     """
-
+    
+    n=len(new_cols)
     list_stations=id_names_txt(soln_folder_path)
     for station in list_stations: #random_stations
-        dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
-                 delim_whitespace=True,header=0,on_bad_lines='skip')
-        dfs=dfs.dropna()
+        line_to_skip=[]
+        try:
+            with open(soln_folder_path+'/'+str(station)+'.txt', 'r') as file:
+                for line_number, line in enumerate(file, 1):
+                    # Replace 'your_separator' with the separator used in your file
+                    columns = line.strip().split(' ')
+                    has_empty_element = any(not element for element in columns)
+                    if len(columns) != n or has_empty_element:
+                        line_to_skip.append(line_number-1)
+        except FileNotFoundError:
+            print(soln_folder_path+'/'+str(station)+'.txt',' - not found')
 
+        dfs = pd.read_csv(soln_folder_path+'/'+str(station)+'.txt', 
+                 delim_whitespace=True,header=None,skiprows=line_to_skip)
+        ## Reset the index if needed
+        dfs = dfs.reset_index(drop=True)
+        dfs=dfs.dropna()
         new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
         dfs.rename(new_names_map, axis=1, inplace=True)
+
         #transform to the same datetime format!!
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
 
@@ -813,7 +841,7 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
         assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
  
         y=dfs.values[:,1:]
-        y_vel=np.zeros([y.shape[0]-1,y.shape[1]])
+        y_vel=np.zeros([y.shape[0]-step,y.shape[1]])
     
         ###### Derivative ######
         # time vector
@@ -823,13 +851,13 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
     
         for k in range(y.shape[1]):
             y_vel[:,k]=derivative(days_ago_as_int,y[:,k],step)
-
-        print(y_vel.shape)
-        print(y.shape)
+        
+        #print(y.shape,y_vel.shape)
         #y=np.diff(y,axis=0)
+        YYMMDDT=list(dfs['YYMMDD'])[step:]
         dfvel = pd.DataFrame(y_vel[:] , columns=new_cols[1:])
         dfvel['YYMMDD']  = pd.Series(dtype='float64') 
-        dfvel['YYMMDD']=dfs['YYMMDD'][1:]
+        dfvel['YYMMDD']=YYMMDDT
         dfvel['YYMMDD']= pd.to_datetime(dfvel['YYMMDD']).astype('datetime64[ns]')
         
         #date columns as first
@@ -1434,4 +1462,3 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
         os.remove(coord_file)                   
                                
     return print('Finished')   
-
