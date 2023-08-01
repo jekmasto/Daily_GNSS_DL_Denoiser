@@ -90,8 +90,8 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
         df: file of coordinates with columns=['station','latitude','longitude','altitude']
         soln_folder_path: foler whete all other txt files are 
         thr_distance: distance threshold
-        new_cols: names of the columns of a txt file
-        Reference: string - name of the trajectory you would like to use ('E.g. GrAtSiD or DL')
+        new_cols: names of the columns of a txt file,
+        Reference: string, quantity based on which you base your CMF
         Distance_file: list of lists, where each list includes all stations at a distance shorter than a thresholds
         save_flag: bolean (if True save the list)
         save_cd: cd where to save
@@ -101,8 +101,10 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
         dataframe with CMF results
     """
 
-    if not any('GrAtSiD' in element for element in new_cols) or not any('DL' in element for element in new_cols):
-        raise ValueError("The string 'GrAtSiD' or 'DL' is not present in the input columns")
+    assert isinstance(Reference, str), "Reference must be a string"
+    
+    if not any(Reference in element for element in new_cols):
+        raise ValueError("The string",str(Reference)," is not present in the input columns")
     if not any('E' or 'U' or 'N' in element for element in new_cols):
         raise ValueError("At least one component has to be present in the input columns")
     if not any('station' in element for element in list(df.columns)):
@@ -114,6 +116,8 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
     new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
     dfs.rename(new_names_map, axis=1, inplace=True)
     t=list(dfs.YYMMDD)
+    if not dfs.YYMMDD.is_monotonic_increasing:
+        raise ValueError("Datetime values are not increasing monotonically.")
     
     station=file.split('/')[-1].split('.txt')[0]
     index = df.loc[df['station'] == station].index
@@ -143,6 +147,9 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
             new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
             dfS.rename(new_names_map, axis=1, inplace=True)  
             ts=list(dfS.YYMMDD)
+            if not dfS.YYMMDD.is_monotonic_increasing:
+                raise ValueError("Datetime values are not increasing monotonically - station: ", str(df_new.station.iloc[st]))
+               
             ### Intersections in time
             indici1=np.nonzero(np.in1d(ts, t))[0]
             indici2=np.nonzero(np.in1d(t, ts))[0]
@@ -162,9 +169,16 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
                 new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
                 dfS.rename(new_names_map, axis=1, inplace=True)  
                 ts=list(dfS.YYMMDD)
+                if not dfS.YYMMDD.is_monotonic_increasing:
+                    raise ValueError("Datetime values are not increasing monotonically - station: ", str(df_new.station.iloc[st]))
                 ### Intersections in time
                 indici1=np.nonzero(np.in1d(ts, t))[0]
                 indici2=np.nonzero(np.in1d(t, ts))[0]
+    
+                if len(indici1)!=len(indici2):
+                    raise ValueError("Lengths of indici1 and indici2 are not equal.")
+               
+                assert len(indici1)==len(indici2)
                 indiciR.append(indici1)
                 indiciS.append(indici2)
 
@@ -185,8 +199,8 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
 
         ##### I Start the loop 
         print("Take residuals of close stations")
-        for st in range(len(stations_to_use)): 
-            file_I=soln_folder_path+'/'+str(df_new.station.iloc[st])+'.txt'
+        for st in range(n): 
+            file_I=soln_folder_path+'/'+str(stations_to_use[st])+'.txt'
             dfS = pd.read_csv(file_I,delim_whitespace=True,header=0,on_bad_lines='skip', skiprows=check_rows(file_I,new_cols))
             new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
             dfS.rename(new_names_map, axis=1, inplace=True)  
@@ -197,7 +211,11 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
         
             for c in range(len(components)):
                 ### take Residual of the component
-                rs=dfS[components[c]]-dfS[Reference+'_'+components[c]] #'GrAtSiD_'
+                rs=dfS[components[c]]-dfS[str(Reference)+'_'+components[c]]
+                #print(len(rs))
+                #print(len(indici1))
+                
+                ################## Qui l'errore ##################
                 matrix_median[st,indici2,c]=rs[indici1]
             
             if (st/len(stations_to_use))*100 > ten_step:
@@ -325,7 +343,7 @@ def max_consecutive_nan(arr):
         else : return max_         
     return max_
     
-def build_correlation_matrix(df,soln_folder_path,new_cols,Reference,save_flag=False,save_folder=True):
+def build_correlation_matrix(df,soln_folder_path,new_cols,save_flag=False,save_folder=True):
     
     """
     Parameters
@@ -333,7 +351,6 @@ def build_correlation_matrix(df,soln_folder_path,new_cols,Reference,save_flag=Fa
         df: file of coordinates with columns=['station','latitude','longitude','altitude']
         cd: folder where you have the txt file
         new_cols: names of the columns of a txt file
-        Reference: string - name of the trajectory you would like to use ('E.g. GrAtSiD or DL')
         save_flag: bolean (if True save the numpy array)
         save_folder: folder where save the correlation matrix
 
@@ -343,8 +360,8 @@ def build_correlation_matrix(df,soln_folder_path,new_cols,Reference,save_flag=Fa
               the last three values are: distance between stations [0], number days in common [1], Pearson correlation coefficient for the n components [2,3,4]
     """
     
-    if not any('GrAtSiD' in element for element in new_cols) or not any('DL' in element for element in new_cols):
-        raise ValueError("The string 'GrAtSiD' or 'DL' is not present in the input columns")
+    if not any('GrAtSiD' in element for element in new_cols):
+        raise ValueError("The string 'Gratsid' is not present in the input columns")
     if not any('E' or 'U' or 'N' in element for element in new_cols):
         raise ValueError("At least one component has to be present in the input columns")
     if not any('station' in element for element in list(df.columns)):
@@ -384,8 +401,8 @@ def build_correlation_matrix(df,soln_folder_path,new_cols,Reference,save_flag=Fa
                 corr[i,st,0]=dis
                 corr[i,st,1]=len(indici1)
                 for c in range(len(components)):
-                    r=dfs[components[c]]-dfs[Reference+'_'+components[c]]
-                    rs=dfS[components[c]]-dfS[Reference+'_'+components[c]]
+                    r=dfs[components[c]]-dfs['GrAtSiD_'+components[c]]
+                    rs=dfS[components[c]]-dfS['GrAtSiD_'+components[c]]
                     cc=np.corrcoef(rs[indici1],r[indici2])
                     corr[i,st,2+c]=cc[0,1]
         
@@ -397,7 +414,79 @@ def build_correlation_matrix(df,soln_folder_path,new_cols,Reference,save_flag=Fa
         
     return corr
 
-def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,new_cols,weight_flag=None):
+def build_correlation_matrix(df,soln_folder_path,new_cols,components,save_flag=False,save_folder=True):
+    
+    """
+    Parameters
+    ----------
+        df: file of coordinates with columns=['station','latitude','longitude','altitude']
+        soln_folder_path: folder where you have the txt file
+        new_cols: names of the columns of a txt file
+        components: components to use (esempio ['E','N'])
+        save_flag: bolean (if True save the numpy array)
+        save_folder: folder where save the correlation matrix
+
+    Returns
+    ----------
+        corr: Correlation matrix with a dimension of [len(stations),len(stations)-1,5]
+              the last three values are: distance between stations [0], number days in common [1], Pearson correlation coefficient for the three components [2,3,4]
+    """
+    
+    if not any('GrAtSiD' in element for element in new_cols):
+        raise ValueError("The string 'Gratsid' is not present in the input columns")
+    if not any('E' or 'U' or 'N' in element for element in new_cols):
+        raise ValueError("At least one component has to be present in the input columns")
+    if not any('station' in element for element in list(df.columns)):
+        raise ValueError("The string 'station' is not present in the input columns in the file of the stations coordinates ")
+
+    #### Take coordinates of stations that are inside the folder of interest
+    stations=id_names_txt(soln_folder_path)
+    df = df[df['station'].isin(stations)]
+   
+    ten_step=10
+    n=len(df)
+    corr=np.zeros([len(df),len(df)-1,2+len(components)]) 
+
+    for i in range(len(df)):
+        ### Load the dataframe of the reference station
+        station=df.station.iloc[i]
+        file_I=soln_folder_path+'/'+str(station)+'.txt'
+        dfs = pd.read_csv(file_I,delim_whitespace=True,header=0,on_bad_lines='skip', skiprows=check_rows(file_I,new_cols))
+        new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
+        dfs.rename(new_names_map, axis=1, inplace=True)
+        t=list(dfs.YYMMDD)
+        
+        df_new=df[df.station!=station]  
+        for st in range(len(df_new)): 
+            file_I=soln_folder_path+'/'+str(df_new.station.iloc[st])+'.txt'
+            dfS = pd.read_csv(file_I, delim_whitespace=True,header=0,on_bad_lines='skip',skiprows=check_rows(file_I,new_cols))
+            new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
+            dfS.rename(new_names_map, axis=1, inplace=True)  
+            ts=list(dfS.YYMMDD)
+            ### Intersections in time
+            indici1=np.nonzero(np.in1d(ts, t))[0]
+
+            # If there is at least one day in common
+            if len(indici1)>0:
+                indici2=np.nonzero(np.in1d(t, ts))[0]
+                dis=distance([df_new.latitude.iloc[st],df_new.longitude.iloc[st]], [df.latitude.iloc[i],df.longitude.iloc[i]])
+                corr[i,st,0]=dis
+                corr[i,st,1]=len(indici1)
+                for c in range(len(components)):
+                    r=dfs[components[c]]-dfs['GrAtSiD_'+components[c]]
+                    rs=dfS[components[c]]-dfS['GrAtSiD_'+components[c]]
+                    cc=np.corrcoef(rs[indici1],r[indici2])
+                    corr[i,st,2+c]=cc[0,1]
+        
+        if (i/n)*100 > ten_step:
+            print(str(ten_step)+'%')
+            ten_step+=5
+    if save_flag==True:
+        np.save(save_folder+'Correlation_matrix',corr)
+        
+    return corr
+
+def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,weight_flag=None):
 
     """
     Return the CMC residuals
@@ -409,21 +498,16 @@ def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,new
        d: raw data
        r: original residual
        soln_folder_path: folder of all stations employed
-       Reference: string - name of the trajectory you would like to use ('E.g. GrAtSiD or DL')
        station: name of the station to denoise
        thr_distance: distance threshold
        cd_base: folder of the correlation matrix
        cd_data: folder of the data
-       new_cols: names of the columns of a txt file
        weight_flag: if True the median is weighted 
 
     Returns
     ----------
        t,r,d,median_res/median_resW
     """
-    if not any('GrAtSiD' in element for element in new_cols) or not any('DL' in element for element in new_cols):
-        raise ValueError("The string 'GrAtSiD' or 'DL' is not present in the input columns")
-         
     if comp!='E' or  comp!='N' or  comp!='U':
         raise ValueError("component must be a string like 'E' or 'N' or 'U' ")
     
@@ -481,7 +565,7 @@ def denoise(comp,t,d,r,soln_folder_path,station,thr_distance,cd_base,cd_data,new
             indici1=np.nonzero(np.in1d(ts, t))[0]
             if len(indici1)>0:
                 indici2=np.nonzero(np.in1d(t, ts))[0]
-                rs=dfS[comp]-dfS[Reference+'_'+comp]
+                rs=dfS[comp]-dfS['Gratsid_'+comp]
                 matrix_median[st,indici2]=rs[indici1]
    
             if (st/n)*100 > ten_step:
@@ -591,7 +675,7 @@ def plot_CMF_correlation(t,r,d,median_res,comp,station):
     
     return plt.show()
 
-def plot_CMC_dataframe(dfs,station,Reference,comp,weight_flag=False,save_flag=False,cd_save=None):
+def plot_CMC_dataframe(dfs,station,comp,weight_flag=False,save_flag=False,cd_save=None):
 
     """
     Make a plot of CMF results using a dataframe as input (the output of the CMF function)
@@ -601,7 +685,6 @@ def plot_CMC_dataframe(dfs,station,Reference,comp,weight_flag=False,save_flag=Fa
         dfs: dataframe of denoised results
         station: name of the station
         comp: components to use (eg: 'E')
-        Reference: string - name of the trajectory you would like to use ('E.g. GrAtSiD or DL')
         weight_flag: if True returns the weighted median else the basic median
         save_flag: bolean if True save the figure
         cd_save: folder where save the figure
@@ -611,7 +694,7 @@ def plot_CMC_dataframe(dfs,station,Reference,comp,weight_flag=False,save_flag=Fa
         The plot of CMF results
     """
     
-    r=np.array(dfCMF[comp]-dfCMF[Reference+'_'+comp]).astype('float')
+    r=np.array(dfCMF[comp]-dfCMF['GrAtSiD_'+comp]).astype('float')
     d=np.array(dfCMF[comp]).astype('float')
     if weight_flag==True:
         median_res=np.array(dfCMF['MedW_'+comp])
@@ -789,16 +872,14 @@ else:
 new_cols = [item for sublist in namesT for item in sublist]
 new_cols.insert(0, 'YYMMDD') 
 
-### You wanto to base your CMF on the DL model or on 'GrAtSiD ###
-Reference='DL'
 ##### Run CMF #####
 thr_distance=2000 #distance threeshold
-dfCMF=CMF(file,dfC,soln_folder_path,3000,new_colsReference)                              
+dfCMF=CMF(file,dfC,soln_folder_path,3000,new_cols)                              
 
 ##### Build and Plot the correlation Matrix #####
 dfC = pd.read_csv(dfC, delimiter=',',names=['station','latitude','longitude','altitude'],header=None)
 save_folder='/Users/giacomo/Documents/PhD/Papers/GNSS_DENOISER/New_zeland_C/'
-corr=build_correlation_matrix(dfC,soln_folder_path,new_cols,Reference,components,save_flag=True,save_folder=save_folder)
+corr=build_correlation_matrix(dfC,soln_folder_path,new_cols,components,save_flag=True,save_folder=save_folder)
 corr=np.load(save_folder+'Correlation_matrix.npy')
 plot_correlation_matrix(corr)
 
@@ -813,14 +894,11 @@ thr_distance=3000
 save_flag=False
 cd_save='/home/giacomo/Documents/Denoiser_GPS/Common_mode_analysis/Figures/pdf/'
 
-### You wanto to base your CMF on the DL model or on 'GrAtSiD ###
-Reference='GrAtSiD'
-
 ##### Grab time series of the station to denoise
 t=np.loadtxt(cd_data+comp+'/'+station+'.txt')[:,0]
 d=np.loadtxt(cd_data+comp+'/'+station+'.txt')[:,1]
 r=np.loadtxt(cd_data+comp+'/'+station+'.txt')[:,2]
 
-t,r,d,median_res=denoise(comp,t,d,r,df,Reference,station,thr_distance,cd_base,cd_data,new_cols)
+t,r,d,median_res=denoise(comp,t,d,r,df,station,thr_distance,cd_base,cd_data)
 plot_CMC_correlation(t,r,d,median_res,comp,station)
 """
