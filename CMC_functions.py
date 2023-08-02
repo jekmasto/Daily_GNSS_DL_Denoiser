@@ -762,7 +762,7 @@ new_cols.insert(0, 'YYMMDD')
 
 ##### Run CMF #####
 thr_distance=2000 #distance threeshold
-dfCMF=CMF(file,dfC,soln_folder_path,3000,new_cols)                              
+dfCMF=CMF(file,dfC,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=None,save_flag=False,save_folder=None)      
 
 ##### Build and Plot the correlation Matrix #####
 dfC = pd.read_csv(dfC, delimiter=',',names=['station','latitude','longitude','altitude'],header=None)
