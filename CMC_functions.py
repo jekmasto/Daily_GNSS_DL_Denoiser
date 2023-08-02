@@ -116,10 +116,12 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
     new_names_map = {dfs.columns[i]:new_cols[i] for i in range(len(new_cols))}
     dfs.rename(new_names_map, axis=1, inplace=True)
     t=list(dfs.YYMMDD)
+    station=file.split('/')[-1].split('.txt')[0]
+
     if not dfs.YYMMDD.is_monotonic_increasing:
+        print(station)
         raise ValueError("Datetime values are not increasing monotonically.")
     
-    station=file.split('/')[-1].split('.txt')[0]
     index = df.loc[df['station'] == station].index
     latitude=df.latitude.iloc[index]
     longitude=df.longitude.iloc[index]
