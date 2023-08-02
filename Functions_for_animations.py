@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Feb  15 16:29:18 2023
+
+Functions to apply a Common Mode Filter for GNSS daily time-series 
+
+@author: giacomo
+"""
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -835,10 +845,17 @@ def compute_derivative(soln_folder_path,step,new_cols,save_folder):
         dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
 
         datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+
         # Check for duplicates
-        assert not datetime_index.duplicated().any(), "Datetime series contains duplicates."
+        if datetime_index.duplicated().any():
+            print(station)  # Print the value of station if there are duplicates
+            duplicated_index = datetime_index[datetime_index.duplicated()].index
+            print(duplicated_index)  # Print the index positions of duplicated values
+            raise ValueError("Datetime series contains duplicates.")  # Raise an exception if duplicates are found
         # Check if all dates are increasing
-        assert (datetime_index == datetime_index.sort_values()).all(), "Dates in the datetime series are not in increasing order."
+        if not (datetime_index == datetime_index.sort_values()).all():
+            print(station)
+            raise ValueError("Dates in the datetime series are not in increasing order.")
  
         y=dfs.values[:,1:]
         y_vel=np.zeros([y.shape[0]-step,y.shape[1]])
