@@ -3,7 +3,7 @@
 """
 Created on Thu Feb  15 16:29:18 2023
 
-Functions to apply a Common Mode Filter for GNSS daily time-series 
+Functions to apply the DL model to a GNSS network
 
 @author: giacomo
 """
