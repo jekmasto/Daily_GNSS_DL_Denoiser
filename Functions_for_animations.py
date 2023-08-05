@@ -1368,7 +1368,7 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
                     if Remove_outliers_Flag==True:
                         Noutlier_indicesT=[]
                         for c in range(len(components)):
-                            filtered_data, outlier_indices, non_outlier_indices=hampel_filter(data_comp[:,c],31, 3,threshold = 3)
+                            filtered_data, outlier_indices, non_outlier_indices=hampel_filter(data_comp[:,c],input_length, 3,threshold = 3)
                             Noutlier_indicesT.append(non_outlier_indices)
 
                         Noutlier_indicesT = [item for sublist in Noutlier_indicesT for item in sublist]
@@ -1478,4 +1478,71 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
     if coordinates_flag==False:
         os.remove(coord_file)                   
                                
-    return print('Finished')   
+    return print('Finished') 
+
+def table_for_animation(t,list_stations,vel_folder,names,save_flag=None,save_name=None):
+
+    """
+    Creates a velocity table to make an animation.
+    
+    Parameters
+    ----------
+       vel_folder: input folder 
+       list_stations: list of stations
+       t: datetime range
+       new_cols: list of columns of the input txt files (e.g. ['YYMMDD','E','DL_E','EMV_E','GrAtSiD_E','N','DL_N','EMV_N','GrAtSiD_N']) 
+    
+    Returns
+    ----------
+       table of velocities
+    """
+    namesN=names.copy()
+    namesN.remove('YYMMDD')
+    
+    table=np.full((len(t),len(list_stations),len(namesN)),np.nan)
+    listT=list(t)
+    k=0
+    n=len(names)
+    ten_step=0
+    for station in list_stations: #random_stations
+        line_to_skip=[]
+        try:
+            with open(vel_folder+'/'+str(station)+'.txt', 'r') as file:
+                for line_number, line in enumerate(file, 1):
+                    # Replace 'your_separator' with the separator used in your file
+                    columns = line.strip().split(' ')
+                    has_empty_element = any(not element for element in names)
+                    if len(names) != n or has_empty_element:
+                        line_to_skip.append(line_number-1)
+        except FileNotFoundError:
+            print(vel_folder+'/'+str(station)+'.txt',' - not found')
+
+        dfs = pd.read_csv(vel_folder+'/'+str(station)+'.txt', 
+                     delim_whitespace=True,header=None,skiprows=line_to_skip)
+        ## Reset the index if needed
+        dfs = dfs.reset_index(drop=True)
+        new_names_map = {dfs.columns[i]:names[i] for i in range(len(names))}
+        dfs.rename(new_names_map, axis=1, inplace=True)
+        #transform to the same datetime format!!
+        dfs['YYMMDD']=dfs['YYMMDD'].astype('datetime64[ns]')
+        
+        listdfs=list(dfs['YYMMDD'])
+        both = set(listT).intersection(listdfs ) #datetime elements in common
+        indices_A =[listT.index(x) for x in both]
+        indices_B =[listdfs.index(x) for x in both]
+        for c in range(len(namesN)):
+            table[indices_A,k,c]=dfs[namesN[c]].iloc[indices_B]
+        
+        perc=(k*100)/len(list_stations)
+        if perc>ten_step and ((k-2)*100)/len(list_stations)<ten_step:
+            print(str(round(perc))+'%')
+            ten_step+=10
+            
+        k+=1
+    
+    if save_flag==True:
+        np.savez(save_name, velocities=table, names=names)
+    
+    return table
+
+
