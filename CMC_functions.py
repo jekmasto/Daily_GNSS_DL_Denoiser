@@ -79,7 +79,7 @@ def check_rows(file,new_cols):
                 break
     return np.arange(i)
 
-def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=None,save_flag=False,save_folder=None):
+def CMF(file,df,soln_folder_path,components,thr_distance,new_cols,Reference,Distance_file=None,save_flag=False,save_folder=None):
 
     """
     Return the CMC residuals
@@ -89,6 +89,7 @@ def CMF(file,df,soln_folder_path,thr_distance,new_cols,Reference,Distance_file=N
         file: reference station you want to denoise (txt file)
         df: file of coordinates with columns=['station','latitude','longitude','altitude']
         soln_folder_path: foler whete all other txt files are 
+        components: list of components to use (e.g. ['E','U'])
         thr_distance: distance threshold
         new_cols: names of the columns of a txt file,
         Reference: string, quantity based on which you base your CMF
