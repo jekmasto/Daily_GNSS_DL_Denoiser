@@ -16,6 +16,52 @@ import datetime, math,sys
 from datetime import datetime
 from scipy import interpolate
 
+def find_duplicates(datetime_list):
+    
+    """
+    Returns duplicates of a list of datetime
+
+    Parameters
+    ----------
+       datetime_list: datetime list
+    
+    Returns
+    ----------
+        Output: duplicates
+    """
+    datetime_count = {}
+    duplicates = []
+
+    for dt in datetime_list:
+        if dt in datetime_count:
+            datetime_count[dt] += 1
+            if datetime_count[dt] == 2:
+                duplicates.append(dt)
+        else:
+            datetime_count[dt] = 1
+
+    return duplicates
+    
+    
+def id_names_txt(soln_folder_path):
+    """
+    list of the names of the *txt files inside a folder
+
+    Parameters
+    ----------
+       soln_folder_path: input folder 
+    
+    Returns
+    ----------
+        Output: List of the names of the files
+    """
+    os.chdir(soln_folder_path)
+    names=[]
+    for file in glob.glob("*.txt"):
+        names.append(file.split('.')[0])
+    return sorted(names) 
+
+
 def distance(origin, destination):
     """
     Calculate the Haversine distance.
@@ -124,8 +170,8 @@ def CMF(file,df,soln_folder_path,components,thr_distance,new_cols,Reference,Dist
         raise ValueError("Datetime values are not increasing monotonically.")
     
     index = df.loc[df['station'] == station].index
-    latitude=df.latitude.iloc[index]
-    longitude=df.longitude.iloc[index]
+    latitude=float(df.latitude.iloc[index])
+    longitude=float(df.longitude.iloc[index])
 
     # Index of the station
     ii=df.index[df.station == station].tolist()[0]
@@ -162,7 +208,7 @@ def CMF(file,df,soln_folder_path,components,thr_distance,new_cols,Reference,Dist
     else:
         print("Calculate distance")
         for st in range(len(df_new)): 
-            dis=distance([df_new.latitude.iloc[st],df_new.longitude.iloc[st]], [latitude,longitude])
+            dis=distance([float(df_new.latitude.iloc[st]),float(df_new.longitude.iloc[st])], [latitude,longitude])
             if dis< thr_distance:
                 Distance_list.append([df_new.station.iloc[st],dis])
                 file_I=soln_folder_path+'/'+str(df_new.station.iloc[st])+'.txt'
@@ -398,10 +444,16 @@ def build_correlation_matrix(df,soln_folder_path,Reference,new_cols,components,s
             dfS = pd.read_csv(file_I, delim_whitespace=True,header=0,on_bad_lines='skip',skiprows=check_rows(file_I,new_cols))
             new_names_map = {dfS.columns[i]:new_cols[i] for i in range(len(new_cols))}
             dfS.rename(new_names_map, axis=1, inplace=True)
-            if not dfS.YYMMDD.is_monotonic_increasing:
+            datetime_index = pd.DatetimeIndex(dfs.YYMMDD)
+           
+            # Check for duplicates
+            if  not datetime_index.duplicated().any():
                 print(station)
-                raise ValueError("Datetime values are not increasing monotonically.") 
-            
+                raise ValueError("Datetime series contains duplicates.") 
+            # Check if all dates are increasing
+            if not(datetime_index == datetime_index.sort_values()).all():
+                print(station)
+                raise ValueError("Datetime values are not increasing monotonically.")  
             ts=list(dfS.YYMMDD)
             ### Intersections in time
             indici1=np.nonzero(np.in1d(ts, t))[0]
@@ -842,3 +894,4 @@ r=np.loadtxt(cd_data+comp+'/'+station+'.txt')[:,2]
 t,r,d,median_res=denoise(comp,t,d,r,df,station,thr_distance,cd_base,cd_data)
 plot_CMC_correlation(t,r,d,median_res,comp,station)
 """
+
