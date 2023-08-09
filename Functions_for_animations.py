@@ -1300,6 +1300,8 @@ def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,posit
 
     if gratsid_flag==True:
         assert 'options_gratsid' in locals(), "Variable 'options_gratsid' does not exist."
+        if step_derivative is None: 
+            raise ValueError('step_derivative variable has to be defined')
 
     if suffix=='.txt':
         list_stations=id_names_txt(cd)
