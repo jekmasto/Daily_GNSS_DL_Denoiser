@@ -1266,7 +1266,7 @@ def create_step_file(cd,file_coord,file_step,earthquakes_file,save_Flag=False):
 
     return df_stepsAC,df_stepsEC
 
-def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,position,suffix,cd_step,step_derivative, \
+def loop_for_apply_filter(cd,cd_base,save_folder,t,components,input_length,position,suffix,cd_step,step_derivative=None, \
     Remove_outliers_Flag=True,gratsid_flag=False,options_gratsid=None,exp_flag=False,alpha=2.71,Use_steps_flag=True,coordinates_flag=True,coord_file=None):
 
     """
