@@ -39,6 +39,8 @@ if add_step_flag==True:
     sys.path.append('/home/giacomo/Documents/Denoiser_GPS/Denoiser_code/')
     from funcs_4_DL_resids import add_step
     from create_time_series_plausible import gutenberg_richter_law
+    
+    ## Import pre-defined parameters ##
     import range_parameters_for_generating_time_series
 
     ''' 
@@ -61,7 +63,9 @@ if add_step_flag==True:
     XTr,YTr,Y_new=add_step(magnitude_steps,weights_GR,n_step,XTr,YTr)
     print(str(n_step)+' have been added')
     print('Number of examples with at least one step inside: '+ str(len(np.array(np.argwhere(YTr==1))[:,0])))
+    #save
     np.savez(file=cd+'/'+datasets[0]+'_tensor_step_AUGUMENTED.npz',X=XTr,H=YTr) 
+    
 else:
     XTr=np.load(cd+'/'+datasets[0]+'_tensor_step_AUGUMENTED.npz')['X'] 
     YTr=np.load(cd+'/'+datasets[0]+'_tensor_step_AUGUMENTED.npz')['H']
