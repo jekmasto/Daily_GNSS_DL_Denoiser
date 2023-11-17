@@ -904,13 +904,15 @@ def count_step_velocity(data_folder_path,soln_folder_path,save_path,components):
                 pickle.dump(step_listC, f)
     return
     
-def add_step(n_step,X,Y):
+def add_step(magnitude_steps,weights_GR,n_step,X,Y):
 
     """
     This functions add n_step steps to Input X and target Y matrices
 
     Parameters
     ----------
+       magnitude_steps: range of possible steps amplitudes
+       weights_GR: weights of Gutemberg Richter
        n_step: number of "normal" steps to add
        X: input 
        Y: target (matrix of 0 and 1)
@@ -924,6 +926,8 @@ def add_step(n_step,X,Y):
     """
     
     ########## possible step amplitudes
+    
+    
     steps_array=np.linspace(-0.1,0.1,100000)
     
     ########## thereshold step ####################
@@ -940,18 +944,23 @@ def add_step(n_step,X,Y):
     
     ten_step=10
     for k in range(n_step):
+        ## sign of the step ##
+        sign=[1 if random.random() < 0.5 else -1][0]
         ## amplitude of the step ##
-        step=steps_array[random.sample(range(len(steps_array)), 1)[0]]
+        step=np.random.choice(magnitude_steps, p=GR)*sign
         ## position of the step in the example ##
         pos_step=[random.sample(range(X.shape[1]), 1)[0]][0]
         ## we add the step ##
         X[step_examples[k],pos_step]=X[step_examples[k],pos_step]+ ((1 - day_frac[k])*step)
         X[step_examples[k],pos_step+1:]=X[step_examples[k],pos_step+1:]+(day_frac[k]*step)
-        Y[step_examples[k],pos_step-1]=1 ### if pos_step-1, the 1 is placed when the step starts
-        Y_new[step_examples[k],pos_step-1]=2 ### if pos_step, the 1 is placed when the step ends       
+        
+        ### if pos_step-1, the 1 is placed when the step starts
+        Y[step_examples[k],pos_step-1]=1 
+        Y_new[step_examples[k],pos_step-1]=2     
             
         if (k/n_step)*100 > ten_step:
             print(str(ten_step)+'%')
             ten_step+=10
             
     return X,Y,Y_new
+
