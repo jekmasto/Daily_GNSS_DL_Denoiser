@@ -64,14 +64,13 @@ def introduce_nans(array, max_consecutive_nans=20, total_nan_percentage=10):
     '''
     Parameters
     --------
-       array: 
-       max_consecutive_nans:
-       total_nan_percentage:
+       array: input array 
+       max_consecutive_nans: maximum number of admitted consecutive Nans
+       total_nan_percentage: % of Nans with respect to the length of the input time series
     
     Returns
     --------
        array: with Nans inside
-    
     
     '''
     
@@ -99,7 +98,7 @@ def introduce_nans(array, max_consecutive_nans=20, total_nan_percentage=10):
 
 def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,magnitude_steps,GR,noise_level,offset,sec_rate, \
     num_arctan,max_Aarctan,max_Darctan,num_gau,max_Agau,max_Dgau,decay_on,Adec,Tdec,mc_on,Outliers_flag, \
-                 best_dist_percentage,best_dist_amplitudes):
+                 best_dist_percentage,best_dist_amplitudes,Nans_flag,max_consecutive_nans,total_nan_percentage):
     
     '''
     Parameters
@@ -127,6 +126,10 @@ def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,magnitude_steps,GR,noi
        Outliers_flag: boolean (if True: add outliers)
        best_dist_percentage: distribution of percentages (numbers) of outliers
        best_dist_amplitudes: distribution of amplitudes of outliers
+       Nans_flag:  boolean (if True: add Nans)
+       Percentage_nans: percentage of Nans to put inside
+       max_consecutive_nans: 
+       total_nan_percentage: None
        
     Returns
     --------
@@ -282,8 +285,29 @@ def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,magnitude_steps,GR,noi
         N_full,boolean_outliers=put_outliers(y_full,outliers_amplitudes,window=60)
     else:
         N_full=y_full
+
+    ######## ADD Nans ########
+    if Nans_flag==True:
+        if max_consecutive_nans is not None:
+            if Outliers_flag ==True and total_nan_percentage is None:
+                NN_full= introduce_nans(N_full,max_consecutive_nans,perc)  
+            else:
+                NN_full = introduce_nans(N_full,max_consecutive_nans,total_nan_percentage)        
+        else:
+            NN_full= introduce_nans(N_full)
+            
+        nan_positions = np.where(np.isnan(NN_full))[0]
+        Alloutputs=[y_full, y_sec, y_seas, y_seas_sto, y_steps, y_arctan, y_gau, y_dec, y_noise, \
+            step_locs_out, step_vals, frac_hh_mm_ss,boolean_outliers]
+        for i in range(len(Alloutputs)):
+            Alloutputs[i][nan_positions]=np.nan
+        y_full, y_sec, y_seas, y_seas_sto, y_steps, y_arctan, y_gau, y_dec, y_noise, \
+    step_locs_out, step_vals, frac_hh_mm_ss,boolean_outliers=Alloutputs
+        
+     else:
+        NN_full=N_full
     
-    return N_full,y_full, y_sec, y_seas, y_seas_sto, y_steps, y_arctan, y_gau, y_dec, y_noise, \
+    return NN_full,y_full, y_sec, y_seas, y_seas_sto, y_steps, y_arctan, y_gau, y_dec, y_noise, \
     step_locs_out, step_vals, frac_hh_mm_ss,boolean_outliers
 
 
