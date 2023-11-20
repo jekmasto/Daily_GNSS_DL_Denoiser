@@ -6,11 +6,12 @@ Created on Mar Feb 21 19:53:25 2023
 @author: jon - giacomo
 """
 
-import random,sys,os,glob
+import random,sys,os,glob,pickle
 sys.path.append('/home/giacomo/Documents/Synthetic_dataset/code/')
 sys.path.append('/home/giacomo/Documents/Denoiser_GPS/Denoiser_code/')
-from create_time_series import synth_series
 from funcs_4_DL_resids import id_names_txt,elongate_and_interpolate
+from range_parameters_for_generating_time_series import *
+from create_time_series_plausible import *   
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -245,10 +246,25 @@ def generate_syntethics_gan_noise(n,soln_folder_path,save_folder_path,sec_rateA,
         np.savetxt(fname=out_path,X=out)
     return 
 
+#####################
+Outliers_flag=True
+Nans_flag=True
+max_consecutive_nans=20
 
+
+if Outliers_flag==True:
+    with open('/Users/giacomomastella/Documents/PhD_giacomo/Denoiser/handle_outliers/outliers_distributions/Best_distributions_amplitude_outliers.pkl', 'rb') as f:
+    best_dist_percentage=pickle.load(f)
+    ### Amplitudes ###
+    with open('/Users/giacomomastella/Documents/PhD_giacomo/Denoiser/handle_outliers/outliers_distributions/Best_distributions_amplitude_outliers.pkl', 'rb') as f:
+    best_dist_amplitudes=pickle.load(f)
+    ### choose components 
+    # 0 and 1 means horizontals (E,N); 2 means vertical (U)
+    best_dist_percentage=best_dist_percentage[0]
+    best_dist_amplitudes= best_dist_amplitudes[0]
+    print('Distributions of outliers Imported')
 
 max_gap=5
-  
 ################ if generate_syntethics_real_noise ################
 #soln_folder_path='/home/giacomo/Documents/Denoiser_GPS/Wordwide_dataset/t_disps_resids/'
 
@@ -256,9 +272,10 @@ max_gap=5
 soln_folder_path='/home/giacomo/Documents/S_NEW/U_TS_residuals.npy'
 #soln_folder_path='/home/giacomo/Documents/Denoiser_GPS/Wordwide_dataset/Residuals_tensors/E_N_Fake_residuals_3years.npy'
 
+################ Save folder ################
 save_folder_path='/home/giacomo/Documents/S_NEW/t_disps_residsF_U'
 
-### Numbers of synthetic to generate
+################ Numbers of synthetic to generate ################
 n=20000
 
 ################ if generate_syntethics_real_noise ################
