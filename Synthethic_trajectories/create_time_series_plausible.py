@@ -98,7 +98,7 @@ def introduce_nans(array, max_consecutive_nans=20, total_nan_percentage=10):
 
 def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,magnitude_steps,GR,noise_level,offset,sec_rate, \
     num_arctan,max_Aarctan,max_Darctan,num_gau,max_Agau,max_Dgau,decay_on,Adec,Tdec,mc_on,Outliers_flag, \
-                 best_dist_percentage,best_dist_amplitudes,Nans_flag,max_consecutive_nans,total_nan_percentage):
+                 best_dist_percentage=None,best_dist_amplitudes=None,Nans_flag=None,max_consecutive_nans=None,total_nan_percentage=None):
     
     '''
     Parameters
