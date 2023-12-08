@@ -475,7 +475,7 @@ def periodic_decomposition_trend(x,t_onset,amplitude,periodicity,verbose=False):
     Returns
     --------
        t_onsetST: list of middle time point of each SSEs
-    indeces_zero: list of middle time point of each SSEs
+       indeces_zero: list of middle time point of each SSEs
     
     '''
     
