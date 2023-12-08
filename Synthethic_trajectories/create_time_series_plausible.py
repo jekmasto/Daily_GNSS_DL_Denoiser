@@ -15,7 +15,7 @@ def gutenberg_richter_law(magnitude, a, b):
     
     Parameters
     ---------
-      magnitude: Magnitude of the earthquake.
+      magnitude: Magnitude of the earthquakes.
       a: Constant representing the total number of earthquakes
       b: Constant characterizing the slope of the distribution
 
