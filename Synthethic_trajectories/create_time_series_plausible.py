@@ -107,7 +107,7 @@ def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,magnitude_steps,GR,off
        seas_freqs: 
        seas_amp: 
        sto_mul: 
-       max_nsteps:
+       max_nsteps: maximum number of steps
        magnitude_steps: range of possible steps amplitudes
        weights_GR: weights of GR
        noise_level:
@@ -128,7 +128,7 @@ def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,magnitude_steps,GR,off
        best_dist_amplitudes: distribution of amplitudes of outliers
        Nans_flag:  boolean (if True: add Nans)
        Percentage_nans: percentage of Nans to put inside
-       max_consecutive_nans: 
+       max_consecutive_nans: maximimum number of consecutive Nans
        total_nan_percentage: None
        
     Returns
@@ -145,6 +145,7 @@ def synth_series(x,seas_freqs,seas_amp,sto_mul,max_nsteps,magnitude_steps,GR,off
        step_locs_out:
        step_vals:
        frac_hh_mm_ss:
+       boolean_outliers: 0-1 vectors that tells you where outliers are
     
     '''
 
