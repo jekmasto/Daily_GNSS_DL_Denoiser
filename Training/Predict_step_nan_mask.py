@@ -11,6 +11,9 @@ import tensorflow as tf
 from tensorflow import keras
 import matplotlib.pyplot as plt
 
+sys.path.append('/home/giacomo/Documents/Daily_GNSS_DL_Denoiser-main/Prepare_data/')
+from funcs_4_DL_resids import add_step,make_plot
+
 ################## GPU OFF ##################
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
@@ -42,8 +45,6 @@ add_step_flag=False
 if add_step_flag==True:
 
     sys.path.append('/home/giacomo/Documents/Daily_GNSS_DL_Denoiser-main/Synthethic_trajectories/')
-    sys.path.append('/home/giacomo/Documents/Daily_GNSS_DL_Denoiser-main/Prepare_data/')
-    from funcs_4_DL_resids import add_step
     from create_time_series_plausible import gutenberg_richter_law
 
     ## Import pre-defined parameters ##
