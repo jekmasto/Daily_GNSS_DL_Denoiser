@@ -134,7 +134,6 @@ def custom_loss(y_true, y_pred):
 ######## Dense model########
 def dense(input_length,target_size=1,dropout=None,dropout_value=None):
     act=tf.nn.leaky_relu
-    act='relu'
     #act='relu'
     model = keras.Sequential()
 
@@ -178,6 +177,11 @@ def Autoencoder(input_length):
     return model
 
 def create_nan_mask(input_length):
+    
+    '''
+    Create a nan mask for the input
+    '''
+    
     def nan_mask(inputs):
         nan_mask = tf.math.is_nan(inputs)
         return tf.where(nan_mask, tf.zeros_like(inputs), inputs)
@@ -185,6 +189,10 @@ def create_nan_mask(input_length):
     return Lambda(nan_mask, input_shape=(input_length, 1))
 
 def Autoencoder_skip(input_length):
+
+    '''
+    Autoencoder models with skip connections
+    '''
     
     act=tf.nn.leaky_relu
 
@@ -193,19 +201,26 @@ def Autoencoder_skip(input_length):
     masked_input = create_nan_mask(input_length)(input_net)
     #masked_input = Masking(mask_value=np.nan)(input_net)
     #input_net = Input((input_length, 1), mask_value=np.nan)
-   
-    conv1=Conv1D(filters=64, kernel_size=5, padding="same", strides=3, activation=act)(masked_input) #(masked_input)
+
+    ##### Shrinking Branch #####
+    conv1=Conv1D(filters=64, kernel_size=5, padding="same", strides=3, activation=act)(masked_input) 
     conv2=Conv1D(filters=32, kernel_size=5, padding="same", strides=3, activation=act)(conv1)
     conv3=Conv1D(filters=16, kernel_size=5, padding="same", strides=3, activation=act)(conv2)
     conv4=Conv1D(filters=16, kernel_size=5, padding="same", strides=3, activation=act)(conv3)
     drop=Dropout(rate=0.1)(conv4)
+
+    ##### Expaning Branch #####
     up3=Conv1DTranspose(filters=16, kernel_size=5, padding="same", strides=3, activation=act)(drop)
     merge3 = concatenate([conv3,up3],axis = 1)
     up2=Conv1DTranspose(filters=32, kernel_size=5, padding="same", strides=3, activation=act)(merge3)
     merge2 = concatenate([conv2,up2],axis = 1)
     up1=Conv1DTranspose(filters=64, kernel_size=5, padding="same", strides=3, activation=act)(merge2)
+    
+    ##### Merging the two Branches #####
     merge1 = concatenate([conv1,up1],axis = 1)
     f=Flatten()(merge1)
+
+    ##### Output flatten #####
     output_net=Dense(input_length,activation='sigmoid')(f)
     model = Model(inputs = input_net, outputs = output_net)
     model.summary()
@@ -217,7 +232,7 @@ model= Autoencoder_skip(XTr.shape[1])
 #loss_fn = keras.losses.MeanSquaredError()
 optimizer = keras.optimizers.Adam(learning_rate=5e-4)
 
-
+##### Define Early stopping on loss and validation loss #####
 earlystopper = tf.keras.callbacks.EarlyStopping(
     monitor='loss', patience=4, verbose=0, mode='auto')
 earlystopperV = tf.keras.callbacks.EarlyStopping(
@@ -226,7 +241,6 @@ earlystopperV = tf.keras.callbacks.EarlyStopping(
 
 model.compile(optimizer,loss= 'binary_crossentropy',metrics=['accuracy']) #custom_loss
 #model.compile(optimizer,loss= 'accuracy',metrics=['accuracy']) #masked_binary_crossentropy binary_crossentropy
-
 
 history=model.fit(
     training_generator,
@@ -241,66 +255,8 @@ if history.history['loss'][-1] < 0.0041:
     print('Daje per il modello')
     model.save(cd+'/Step_model_skip')
 
-
 #### number of subplot
 n=3
-
-def make_plot(XTe,YTe,Yteg,n):
-    import random
-    from sklearn.metrics import mean_squared_error 
-
-    step_example=np.array(np.argwhere(YTe==1))[:,0]
-    print(step_example)
-    random_station = random.sample(range(len(step_example)-n), 1)[0]
-    random_station= step_example[random_station]
-
-    fig,axes=plt.subplots(n,1,figsize=(15,10))
-    fig.subplots_adjust(wspace=0.1, hspace=0.3)
-    ii=random_station
-    print(random_station)
-    
-    for i in range(n):  
-        #Apply the scaling
-        XX_inputo=XTe[ii,:] #-mean)/std
-        YY=YTe[ii,:]
-        YYg=Yteg[ii,:]
-        
-        ## Predict ###
-        XX_input=XX_inputo.reshape([1,XX_inputo.shape[0]])
-        print(XX_input.shape)
-        predictions=model.predict(XX_input)
-        predictions=predictions.squeeze()
-                    
-        ### Errors ####
-        rms = round(mean_squared_error(YY, predictions, squared=False),5) 
-        ##################### PLOT ############################
-        
-        axes[i].plot(np.arange(XX_input.shape[1]),predictions,color='y',label='Predicted',linewidth=2)  
-        axes[i].plot(np.arange(XX_input.shape[1]),YY,color='r',label='target',linewidth=0.5)   
-        axes[i].legend(prop={'size': 6},loc='lower right')
-        axes[i].tick_params(axis='both', which='major', labelsize=5)
-        axes[i].set_xlim([0,XX_input.shape[1]-1])  
-        axes[i].set_ylabel('Target',fontsize=8)  
-        axes[i].set_ylim([0,1.1])          
-
-        ax=axes[i].twinx()
-
-        p2=ax.scatter(np.arange(XX_input.shape[1]),XX_input,s=5,color='b',label='True',linewidth=2)
-        p2=ax.plot(np.arange(XX_input.shape[1]),np.squeeze(XX_input)-YYg,color='c',label='True',linewidth=2)
-        ax.set_ylabel('Displacement',color='b',fontsize=8)
-        ax.spines['bottom'].set_color('b')
-        ax.yaxis.label.set_color('b')
-        ax.tick_params(axis='y', colors='b',labelsize=8)
-        
-        if any(predictions>0.1):
-            location_step=np.argwhere(predictions>0.1)[0][0] 
-            ax.plot([location_step,location_step+1],[XX_input[0,location_step],XX_input[0,location_step+1]],color='g',label='True',linewidth=2)
-
-        ii=ii+1
-                
-    #if save_flag==True:
-        #fig.savefig(save_folder+file_name+'_seq',dpi=300)
-    return plt.show()
 
 make_plot(XTv,YTv,YTvg,n)
 make_plot(XTv,YTv,YTvg,n)
