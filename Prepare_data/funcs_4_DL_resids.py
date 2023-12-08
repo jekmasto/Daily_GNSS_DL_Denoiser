@@ -985,3 +985,65 @@ def derivative(t,data):
     for i in range(1,len(data)):
         derivate[i-1]=(data[i]- data[i-1])/(t[i]-t[i-1])
     return derivate
+
+def make_plot(XTe,YTe,Yteg,n):
+    
+    '''
+    Make plot for the step model
+    '''
+    
+    import random
+    from sklearn.metrics import mean_squared_error 
+
+    step_example=np.array(np.argwhere(YTe==1))[:,0]
+    print(step_example)
+    random_station = random.sample(range(len(step_example)-n), 1)[0]
+    random_station= step_example[random_station]
+
+    fig,axes=plt.subplots(n,1,figsize=(15,10))
+    fig.subplots_adjust(wspace=0.1, hspace=0.3)
+    ii=random_station
+    print(random_station)
+    
+    for i in range(n):  
+        #Apply the scaling
+        XX_inputo=XTe[ii,:] #-mean)/std
+        YY=YTe[ii,:]
+        YYg=Yteg[ii,:]
+        
+        ## Predict ###
+        XX_input=XX_inputo.reshape([1,XX_inputo.shape[0]])
+        print(XX_input.shape)
+        predictions=model.predict(XX_input)
+        predictions=predictions.squeeze()
+                    
+        ### Errors ####
+        rms = round(mean_squared_error(YY, predictions, squared=False),5) 
+        ##################### PLOT ############################
+        
+        axes[i].plot(np.arange(XX_input.shape[1]),predictions,color='y',label='Predicted',linewidth=2)  
+        axes[i].plot(np.arange(XX_input.shape[1]),YY,color='r',label='target',linewidth=0.5)   
+        axes[i].legend(prop={'size': 6},loc='lower right')
+        axes[i].tick_params(axis='both', which='major', labelsize=5)
+        axes[i].set_xlim([0,XX_input.shape[1]-1])  
+        axes[i].set_ylabel('Target',fontsize=8)  
+        axes[i].set_ylim([0,1.1])          
+
+        ax=axes[i].twinx()
+
+        p2=ax.scatter(np.arange(XX_input.shape[1]),XX_input,s=5,color='b',label='True',linewidth=2)
+        p2=ax.plot(np.arange(XX_input.shape[1]),np.squeeze(XX_input)-YYg,color='c',label='True',linewidth=2)
+        ax.set_ylabel('Displacement',color='b',fontsize=8)
+        ax.spines['bottom'].set_color('b')
+        ax.yaxis.label.set_color('b')
+        ax.tick_params(axis='y', colors='b',labelsize=8)
+        
+        if any(predictions>0.1):
+            location_step=np.argwhere(predictions>0.1)[0][0] 
+            ax.plot([location_step,location_step+1],[XX_input[0,location_step],XX_input[0,location_step+1]],color='g',label='True',linewidth=2)
+
+        ii=ii+1
+                
+    #if save_flag==True:
+        #fig.savefig(save_folder+file_name+'_seq',dpi=300)
+    return plt.show()
