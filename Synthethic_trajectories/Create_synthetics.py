@@ -269,7 +269,7 @@ def generate_syntethics_gan_noise(n,soln_folder_path,save_folder_path,sec_rateA,
 #####################
 ### Gutember Richter ###
 n_values = gutenberg_richter_law(magnitude_steps, a, b)
-GR=[i/sum(n_values) for i in (n_values)]
+GR=n_values / np.sum(n_values)
 
 
 Outliers_flag=True
