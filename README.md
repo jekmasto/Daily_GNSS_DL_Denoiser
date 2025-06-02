@@ -33,6 +33,7 @@ https://github.com/TectonicGeodesy-RUB/Gratsid
 to cite:
 Bedford, J. and Bevis, M., 2018. Greedy automatic signal decomposition and its application to daily GPS time series. Journal of Geophysical Research: Solid Earth, 123(8), pp.6992-7003.
 
+Models will be avaliable soon on a zenodo repository.
 
 if you want to use the GAN for generating synthetics residuals spectrograms, also the librosa package has to be installed
 The code is avaliable from:
